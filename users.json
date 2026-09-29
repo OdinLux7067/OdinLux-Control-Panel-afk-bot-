@@ -3,7 +3,7 @@
     "id": "user_admin_001",
     "username": "Odin Lux",
     "email": "admin@odinlux.com",
-    "passwordHash": "d514897f7883dc79463e731fcaef23e5993f55d5bf516562856edd188b447316",
+    "passwordHash": "3a74822699f2d6da8fe236f803ba0c36b2130efda839dad66ac61cee1438f1ef",
     "role": "admin",
     "createdAt": "2026-09-27T13:00:00.000Z"
   },

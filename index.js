@@ -21,38 +21,57 @@ process.on('unhandledRejection', (reason) => {
 
 // --- USERS & AUTH MANAGEMENT ---
 const USERS_FILE = path.join(__dirname, 'users.json');
+const TMP_USERS_FILE = path.join('/tmp', 'users.json');
 let usersConfig = [];
 const activeSessions = new Map(); // token -> user object
+const JWT_SECRET = process.env.JWT_SECRET || 'odinlux_jwt_master_secret_2026';
 
 function hashPassword(password) {
     return crypto.createHash('sha256').update(password + '_odinlux_salt_2026').digest('hex');
 }
 
-function generateToken() {
-    return crypto.randomBytes(32).toString('hex');
+function generateToken(user) {
+    if (!user) {
+        return crypto.randomBytes(32).toString('hex');
+    }
+    const payload = {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        role: user.role,
+        iat: Date.now()
+    };
+    const payloadB64 = Buffer.from(JSON.stringify(payload)).toString('base64url');
+    const signature = crypto.createHmac('sha256', JWT_SECRET).update(payloadB64).digest('base64url');
+    return `${payloadB64}.${signature}`;
 }
 
 function loadUsersConfig() {
     try {
+        if (fs.existsSync(TMP_USERS_FILE)) {
+            const data = fs.readFileSync(TMP_USERS_FILE, 'utf8');
+            usersConfig = JSON.parse(data);
+            return;
+        }
         if (fs.existsSync(USERS_FILE)) {
             const data = fs.readFileSync(USERS_FILE, 'utf8');
             usersConfig = JSON.parse(data);
-        } else {
-            usersConfig = [
-                {
-                    id: 'user_admin_001',
-                    username: 'Odin Lux',
-                    email: 'admin@odinlux.com',
-                    passwordHash: hashPassword('odin123'),
-                    role: 'admin',
-                    createdAt: new Date().toISOString()
-                }
-            ];
-            fs.writeFileSync(USERS_FILE, JSON.stringify(usersConfig, null, 2));
+            return;
         }
     } catch (err) {
         console.error('[USERS] Error loading users.json:', err.message);
     }
+    usersConfig = [
+        {
+            id: 'user_admin_001',
+            username: 'Odin Lux',
+            email: 'admin@odinlux.com',
+            passwordHash: hashPassword('odin123'),
+            role: 'admin',
+            createdAt: new Date().toISOString()
+        }
+    ];
+    saveUsersConfig();
 }
 loadUsersConfig();
 
@@ -60,45 +79,81 @@ function saveUsersConfig() {
     try {
         fs.writeFileSync(USERS_FILE, JSON.stringify(usersConfig, null, 2));
     } catch (err) {
-        console.error('[USERS] Error saving users.json:', err.message);
+        try {
+            fs.writeFileSync(TMP_USERS_FILE, JSON.stringify(usersConfig, null, 2));
+        } catch (e) {
+            console.error('[USERS] Error saving users.json to /tmp:', e.message);
+        }
     }
 }
 
 function getUserByToken(token) {
     if (!token) return null;
-    return activeSessions.get(token) || null;
+    if (activeSessions.has(token)) {
+        return activeSessions.get(token);
+    }
+    // Verify signed HMAC token
+    try {
+        const parts = token.split('.');
+        if (parts.length === 2) {
+            const [payloadB64, signature] = parts;
+            const expectedSig = crypto.createHmac('sha256', JWT_SECRET).update(payloadB64).digest('base64url');
+            if (crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSig))) {
+                const payload = JSON.parse(Buffer.from(payloadB64, 'base64url').toString('utf8'));
+                const existing = usersConfig.find(u => u.id === payload.id || u.username.toLowerCase() === payload.username.toLowerCase());
+                if (existing) {
+                    const sessionUser = { id: existing.id, username: existing.username, email: existing.email, role: existing.role };
+                    activeSessions.set(token, sessionUser);
+                    return sessionUser;
+                }
+                const sessionUser = { id: payload.id, username: payload.username, email: payload.email, role: payload.role || 'user' };
+                activeSessions.set(token, sessionUser);
+                return sessionUser;
+            }
+        }
+    } catch (e) {
+        // invalid signature or json
+    }
+    return null;
 }
 
 // --- SERVER CONFIGURATIONS ---
 const SERVERS_FILE = path.join(__dirname, 'servers.json');
+const TMP_SERVERS_FILE = path.join('/tmp', 'servers.json');
 let serversConfig = [];
 
 function loadServersConfig() {
     try {
+        if (fs.existsSync(TMP_SERVERS_FILE)) {
+            const data = fs.readFileSync(TMP_SERVERS_FILE, 'utf8');
+            serversConfig = JSON.parse(data);
+            return;
+        }
         if (fs.existsSync(SERVERS_FILE)) {
             const data = fs.readFileSync(SERVERS_FILE, 'utf8');
             serversConfig = JSON.parse(data);
-        } else {
-            serversConfig = [
-                {
-                    id: 'server_1',
-                    name: 'Odin server',
-                    host: '163.5.201.12',
-                    port: 14183,
-                    username: 'AFK_Steve',
-                    password: null,
-                    version: 'auto',
-                    connectIp: '163.5.201.12:14183',
-                    description: 'Odin server is online and ready for players.',
-                    ownerUsername: 'Odin Lux',
-                    allowedUsers: [],
-                    autoStart: true
-                }
-            ];
-            fs.writeFileSync(SERVERS_FILE, JSON.stringify(serversConfig, null, 2));
+            return;
         }
     } catch (err) {
         console.error('[CONFIG] Error loading servers.json:', err.message);
+    }
+    if (!Array.isArray(serversConfig) || serversConfig.length === 0) {
+        serversConfig = [
+            {
+                id: 'server_1',
+                name: 'Odin server',
+                host: '163.5.201.12',
+                port: 14183,
+                username: 'AFK_Steve',
+                password: null,
+                version: 'auto',
+                connectIp: '163.5.201.12:14183',
+                description: 'Odin server is online and ready for players.',
+                ownerUsername: 'Odin Lux',
+                allowedUsers: [],
+                autoStart: false
+            }
+        ];
     }
 }
 loadServersConfig();
@@ -107,7 +162,11 @@ function saveServersConfig() {
     try {
         fs.writeFileSync(SERVERS_FILE, JSON.stringify(serversConfig, null, 2));
     } catch (err) {
-        console.error('[CONFIG] Error saving servers.json:', err.message);
+        try {
+            fs.writeFileSync(TMP_SERVERS_FILE, JSON.stringify(serversConfig, null, 2));
+        } catch (e) {
+            console.error('[CONFIG] Error saving servers.json to /tmp:', e.message);
+        }
     }
 }
 
@@ -243,8 +302,8 @@ app.post('/api/register', (req, res) => {
         usersConfig.push(newUser);
         saveUsersConfig();
 
-        const token = generateToken();
         const sessionUser = { id: newUser.id, username: newUser.username, email: newUser.email, role: newUser.role };
+        const token = generateToken(sessionUser);
         activeSessions.set(token, sessionUser);
 
         res.json({ success: true, token, user: sessionUser });
@@ -279,8 +338,8 @@ app.post('/api/login', (req, res) => {
             saveUsersConfig();
         }
 
-        const token = generateToken();
         const sessionUser = { id: user.id, username: user.username, email: user.email, role: user.role };
+        const token = generateToken(sessionUser);
         activeSessions.set(token, sessionUser);
 
         res.json({ success: true, token, user: sessionUser });
@@ -624,15 +683,15 @@ app.post('/api/servers', (req, res) => {
 
     const cleanUser = sanitizeUsername(data.username || 'AFK_Steve');
     const newServer = {
-        id: `server_${Date.now()}`,
+        id: data.id || `server_${Date.now()}`,
         name: data.name || `Server ${serversConfig.length + 1}`,
-        host: data.host,
+        host: data.host.trim(),
         port: parseInt(data.port, 10) || 25565,
         username: cleanUser,
-        password: data.password || null,
+        password: data.password ? data.password.trim() : null,
         version: (data.version && data.version.trim()) ? data.version.trim() : 'auto',
-        connectIp: `${data.host}:${data.port || 25565}`,
-        description: data.description || 'Minecraft server',
+        connectIp: `${data.host.trim()}:${data.port || 25565}`,
+        description: data.description ? data.description.trim() : 'Minecraft server',
         ownerUsername: user.username,
         allowedUsers: [],
         autoStart: data.autoStart !== false
@@ -640,9 +699,119 @@ app.post('/api/servers', (req, res) => {
     serversConfig.push(newServer);
     saveServersConfig();
     emitServersListToAll();
-    if (data.autoStart) startBot(newServer);
+    if (newServer.autoStart) startBot(newServer);
 
-    res.json({ success: true, message: `Server "${newServer.name}" created successfully.`, server: newServer });
+    res.json({
+        success: true,
+        message: `Server "${newServer.name}" created successfully.`,
+        server: newServer,
+        servers: getVisibleServers(user)
+    });
+});
+
+app.put('/api/servers/:id', (req, res) => {
+    const authHeader = req.headers.authorization;
+    const token = authHeader ? authHeader.replace(/^Bearer\s+/i, '') : null;
+    const user = getUserByToken(token);
+    if (!user) return res.status(401).json({ success: false, message: 'Unauthorized' });
+
+    const serverId = req.params.id;
+    if (!canAccessServer(user, serverId)) {
+        return res.status(403).json({ success: false, message: 'Permission denied: Cannot edit this server.' });
+    }
+
+    const s = serversConfig.find(item => item.id === serverId);
+    if (!s) return res.status(404).json({ success: false, message: 'Server not found.' });
+
+    const data = req.body;
+    if (data.name) s.name = data.name.trim();
+    if (data.host) s.host = data.host.trim();
+    if (data.port) s.port = parseInt(data.port, 10) || 25565;
+    if (data.username) s.username = sanitizeUsername(data.username);
+    if (data.password !== undefined) s.password = data.password ? data.password.trim() : null;
+    if (data.version) s.version = data.version.trim();
+    if (data.description !== undefined) s.description = data.description ? data.description.trim() : '';
+    s.connectIp = `${s.host}:${s.port}`;
+    if (data.autoStart !== undefined) s.autoStart = !!data.autoStart;
+
+    saveServersConfig();
+    emitServersListToAll();
+
+    res.json({
+        success: true,
+        message: `Server "${s.name}" updated successfully.`,
+        server: s,
+        servers: getVisibleServers(user)
+    });
+});
+
+app.post('/api/servers/:id/start', (req, res) => {
+    const authHeader = req.headers.authorization;
+    const token = authHeader ? authHeader.replace(/^Bearer\s+/i, '') : null;
+    const user = getUserByToken(token);
+    if (!user) return res.status(401).json({ success: false, message: 'Unauthorized' });
+
+    const serverId = req.params.id;
+    if (!canAccessServer(user, serverId)) return res.status(403).json({ success: false, message: 'Permission denied.' });
+
+    const s = serversConfig.find(item => item.id === serverId);
+    if (!s) return res.status(404).json({ success: false, message: 'Server not found.' });
+
+    startBot(s);
+    res.json({ success: true, message: `Bot started for ${s.name}.` });
+});
+
+app.post('/api/servers/:id/stop', (req, res) => {
+    const authHeader = req.headers.authorization;
+    const token = authHeader ? authHeader.replace(/^Bearer\s+/i, '') : null;
+    const user = getUserByToken(token);
+    if (!user) return res.status(401).json({ success: false, message: 'Unauthorized' });
+
+    const serverId = req.params.id;
+    if (!canAccessServer(user, serverId)) return res.status(403).json({ success: false, message: 'Permission denied.' });
+
+    stopBotInstance(serverId);
+    res.json({ success: true, message: 'Bot stopped.' });
+});
+
+app.post('/api/servers/:id/authme', (req, res) => {
+    const authHeader = req.headers.authorization;
+    const token = authHeader ? authHeader.replace(/^Bearer\s+/i, '') : null;
+    const user = getUserByToken(token);
+    if (!user) return res.status(401).json({ success: false, message: 'Unauthorized' });
+
+    const serverId = req.params.id;
+    if (!canAccessServer(user, serverId)) return res.status(403).json({ success: false, message: 'Permission denied.' });
+
+    const cfg = serversConfig.find(item => item.id === serverId);
+    const bot = activeBots[serverId];
+    if (bot && cfg && cfg.password) {
+        bot.chat(`/login ${cfg.password}`);
+        logAndEmit(serverId, '[AuthMe] Sent /login command');
+        return res.json({ success: true, message: 'AuthMe login command sent.' });
+    }
+    res.status(400).json({ success: false, message: 'Bot offline or no password configured.' });
+});
+
+app.post('/api/servers/:id/cmd', (req, res) => {
+    const authHeader = req.headers.authorization;
+    const token = authHeader ? authHeader.replace(/^Bearer\s+/i, '') : null;
+    const user = getUserByToken(token);
+    if (!user) return res.status(401).json({ success: false, message: 'Unauthorized' });
+
+    const serverId = req.params.id;
+    if (!canAccessServer(user, serverId)) return res.status(403).json({ success: false, message: 'Permission denied.' });
+
+    const msg = req.body && req.body.msg;
+    if (!msg) return res.status(400).json({ success: false, message: 'Message is required.' });
+
+    const bot = activeBots[serverId];
+    if (bot) {
+        bot.chat(msg);
+        logAndEmit(serverId, `[SENT] ${msg}`);
+        return res.json({ success: true, message: 'Message sent.' });
+    }
+    res.status(400).json({ success: false, message: 'Bot is offline.' });
 });
 
 app.delete('/api/servers/:id', (req, res) => {
@@ -1241,3 +1410,5 @@ server.listen(PORT, '0.0.0.0', () => {
         }
     });
 });
+
+module.exports = app;

@@ -1267,7 +1267,8 @@
                     socket.emit('authenticate', { token: data.token });
                     showToast('Logged in as ' + currentUser.username);
                     if (currentUser.role === 'admin') fetchAdminUsers();
-            fetchSystemStats();
+                    await fetchServersList();
+                    fetchSystemStats();
                 } else {
                     if (alertEl) {
                         alertEl.textContent = data.message || 'Login failed';
@@ -1309,6 +1310,8 @@
                     socket.emit('authenticate', { token: data.token });
                     showToast('Welcome, ' + currentUser.username + '!');
                     if (currentUser.role === 'admin') fetchAdminUsers();
+                    await fetchServersList();
+                    fetchSystemStats();
                 } else {
                     if (alertEl) {
                         alertEl.textContent = data.message || 'Registration failed';
@@ -1484,6 +1487,25 @@
             }
         }
 
+        async function fetchServersList() {
+            const token = localStorage.getItem('odinlux_token');
+            if (!token) return;
+            try {
+                const res = await fetch('/api/servers', {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                const data = await res.json();
+                if (data.success && Array.isArray(data.servers)) {
+                    serversConfig = data.servers;
+                    if (data.statuses) Object.assign(botStatusCache, data.statuses);
+                    if (data.uptimes) Object.assign(botUptimeCache, data.uptimes);
+                    renderServersUI();
+                }
+            } catch (err) {
+                console.warn('Failed to fetch servers list via REST:', err);
+            }
+        }
+
         function handleForgotPassword() {
             showToast('To reset your password, contact your master Admin or open Account Settings.');
         }
@@ -1505,6 +1527,8 @@
                     hideAuthScreen();
                     socket.emit('authenticate', { token });
                     if (currentUser.role === 'admin') fetchAdminUsers();
+                    await fetchServersList();
+                    fetchSystemStats();
                 } else {
                     localStorage.removeItem('odinlux_token');
                     showAuthScreen();
@@ -2433,9 +2457,39 @@
             }
         }
 
-        function sendAuthMe(serverId) { socket.emit('trigger_authme', { serverId: serverId }); }
-        function startBot(serverId) { socket.emit('start_bot', { serverId: serverId }); }
-        function stopBot(serverId) { socket.emit('stop_bot', { serverId: serverId }); }
+        async function sendAuthMe(serverId) { 
+            const token = localStorage.getItem('odinlux_token');
+            socket.emit('trigger_authme', { serverId: serverId }); 
+            try {
+                await fetch(`/api/servers/${serverId}/authme`, {
+                    method: 'POST',
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+            } catch(e) {}
+            showToast('AuthMe login triggered');
+        }
+        async function startBot(serverId) { 
+            const token = localStorage.getItem('odinlux_token');
+            socket.emit('start_bot', { serverId: serverId }); 
+            try {
+                await fetch(`/api/servers/${serverId}/start`, {
+                    method: 'POST',
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+            } catch(e) {}
+            showToast('Starting bot...');
+        }
+        async function stopBot(serverId) { 
+            const token = localStorage.getItem('odinlux_token');
+            socket.emit('stop_bot', { serverId: serverId }); 
+            try {
+                await fetch(`/api/servers/${serverId}/stop`, {
+                    method: 'POST',
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+            } catch(e) {}
+            showToast('Stopping bot...');
+        }
 
         function handleAiSubmit(e) {
             if (e) e.preventDefault();
@@ -2514,8 +2568,9 @@
             confirmDeleteServer(id, name);
         }
 
-        function handleSaveServer(e) {
+        async function handleSaveServer(e) {
             e.preventDefault();
+            const token = localStorage.getItem('odinlux_token');
             const mode = document.getElementById('modalMode').value;
             const data = {
                 id: document.getElementById('editServerId').value,
@@ -2529,12 +2584,51 @@
                 autoStart: document.getElementById('editServerStartNow').checked
             };
 
-            if (mode === 'add') {
-                socket.emit('create_server', data);
-            } else {
-                socket.emit('update_server_config', data);
+            const btnSave = e.target.querySelector('button[type="submit"]');
+            if (btnSave) btnSave.disabled = true;
+
+            try {
+                const url = mode === 'add' ? '/api/servers' : `/api/servers/${data.id}`;
+                const method = mode === 'add' ? 'POST' : 'PUT';
+                const res = await fetch(url, {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + token
+                    },
+                    body: JSON.stringify(data)
+                });
+                const result = await res.json();
+                if (result.success) {
+                    showToast(result.message || (mode === 'add' ? 'Server added successfully' : 'Server updated'));
+                    if (result.servers) {
+                        serversConfig = result.servers;
+                    } else if (result.server) {
+                        if (mode === 'add') {
+                            serversConfig.push(result.server);
+                        } else {
+                            const idx = serversConfig.findIndex(s => s.id === result.server.id);
+                            if (idx !== -1) serversConfig[idx] = result.server;
+                        }
+                    }
+                    renderServersUI();
+                    fetchSystemStats();
+                    closeEditModal();
+                } else {
+                    showToast('Failed to save server: ' + (result.message || 'Error'));
+                }
+            } catch (err) {
+                console.warn('REST save server error, trying socket fallback:', err);
+                if (mode === 'add') {
+                    socket.emit('create_server', data);
+                } else {
+                    socket.emit('update_server_config', data);
+                }
+                closeEditModal();
+                showToast('Server update submitted');
+            } finally {
+                if (btnSave) btnSave.disabled = false;
             }
-            closeEditModal();
         }
 
         // --- SOCKET.IO LISTENERS ---
@@ -2660,6 +2754,8 @@
 
         // Initialize authentication check on load
         checkExistingAuth();
+        setInterval(fetchServersList, 8000);
+        setInterval(fetchSystemStats, 5000);
         lucide.createIcons();
     </script>
 </body>

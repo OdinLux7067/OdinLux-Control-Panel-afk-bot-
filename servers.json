@@ -10,7 +10,8 @@
     "connectIp": "163.5.201.12:14183",
     "description": "Odin server is online and ready for players.",
     "ownerUsername": "Odin Lux",
-    "allowedUsers": []
+    "allowedUsers": [],
+    "autoStart": false
   },
   {
     "id": "server_2",
@@ -36,7 +37,8 @@
     "connectIp": "163.5.201.11:12448",
     "description": "THEE LOBBY 3.0 server is online and ready for players.",
     "ownerUsername": "Odin Lux",
-    "allowedUsers": []
+    "allowedUsers": [],
+    "autoStart": false
   },
   {
     "id": "server_1790520930103",
@@ -48,7 +50,7 @@
     "version": "auto",
     "connectIp": "nexusfleet07.mcsh.io:25565",
     "description": "TheNexusfleet Paper 1.21 Server",
-    "autoStart": true,
+    "autoStart": false,
     "ownerUsername": "Odin Lux",
     "allowedUsers": []
   }
