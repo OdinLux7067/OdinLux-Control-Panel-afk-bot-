@@ -1,0 +1,8 @@
+{
+  "name": "OdinLux Minecraft Bot Dashboard",
+  "description": "Mineflayer AFK Bot with Web Control Dashboard and Gemini AI Assistant",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

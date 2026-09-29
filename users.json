@@ -1,0 +1,26 @@
+[
+  {
+    "id": "user_admin_001",
+    "username": "Odin Lux",
+    "email": "admin@odinlux.com",
+    "passwordHash": "d514897f7883dc79463e731fcaef23e5993f55d5bf516562856edd188b447316",
+    "role": "admin",
+    "createdAt": "2026-09-27T13:00:00.000Z"
+  },
+  {
+    "id": "user_raj_rithik",
+    "username": "Raj_Rithik",
+    "email": "rajrithik22@gmail.com",
+    "passwordHash": "d514897f7883dc79463e731fcaef23e5993f55d5bf516562856edd188b447316",
+    "role": "admin",
+    "createdAt": "2026-09-29T13:39:01.537Z"
+  },
+  {
+    "id": "user_1790539507243",
+    "username": "player_steve",
+    "email": "steve@example.com",
+    "passwordHash": "1dfea068a865a8ab325ab07a355bb0f8fe492755594851813662db6857fc3808",
+    "role": "user",
+    "createdAt": "2026-09-27T20:05:07.243Z"
+  }
+]

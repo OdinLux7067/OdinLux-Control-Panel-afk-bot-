@@ -1,0 +1,2664 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OdinLux Minecraft Bot Dashboard</title>
+    <meta name="description" content="Mineflayer AFK Bot with Web Control Dashboard and Gemini AI Assistant">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        :root {
+            --bg-body: #000000;
+            --bg-sidebar: #0a0a0a;
+            --bg-topnav: #000000;
+            --bg-card: #0a0a0a;
+            --bg-input: #111111;
+            --border: #222222;
+            --border-focus: #ededed;
+            --accent: #10b981;
+            --text-main: #ededed;
+            --text-muted: #888888;
+            --success: #0070f3;
+            --danger: #e00000;
+            --warning: #f5a623;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background: var(--bg-body);
+            color: var(--text-main);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            height: 100vh;
+            overflow: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* --- AUTH SCREEN OVERLAY STYLES (ORIGINAL SLIDING CYBER DESIGN) --- */
+        #authOverlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: #1a1a2e;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .auth-wrapper {
+            position: relative;
+            width: 100%;
+            max-width: 800px;
+            height: 560px;
+            border: 2px solid #00d4ff;
+            box-shadow: 0 0 25px #00d4ff;
+            overflow: hidden;
+            background: #1a1a2e;
+            font-family: 'Poppins', sans-serif;
+            border-radius: 4px;
+        }
+
+        .auth-wrapper * {
+            font-family: 'Poppins', sans-serif;
+        }
+
+        .auth-wrapper .credentials-panel {
+            position: absolute;
+            top: 0;
+            width: 50%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            flex-direction: column;
+            z-index: 10;
+        }
+
+        .credentials-panel.signin {
+            left: 0;
+            padding: 0 40px;
+        }
+
+        .credentials-panel.signin .slide-element {
+            transform: translateX(0%);
+            transition: .7s;
+            opacity: 1;
+        }
+
+        .credentials-panel.signin .slide-element:nth-child(1) { transition-delay: 0.05s; }
+        .credentials-panel.signin .slide-element:nth-child(2) { transition-delay: 0.15s; }
+        .credentials-panel.signin .slide-element:nth-child(3) { transition-delay: 0.25s; }
+        .credentials-panel.signin .slide-element:nth-child(4) { transition-delay: 0.35s; }
+        .credentials-panel.signin .slide-element:nth-child(5) { transition-delay: 0.45s; }
+        .credentials-panel.signin .slide-element:nth-child(6) { transition-delay: 0.55s; }
+
+        .auth-wrapper.toggled .credentials-panel.signin .slide-element {
+            transform: translateX(-120%);
+            opacity: 0;
+        }
+
+        .credentials-panel.signup {
+            right: 0;
+            padding: 0 50px;
+        }
+
+        .credentials-panel.signup .slide-element {
+            transform: translateX(120%);
+            transition: .7s ease;
+            opacity: 0;
+            filter: blur(10px);
+        }
+
+        .credentials-panel.signup .slide-element:nth-child(1) { transition-delay: 0s; }
+        .credentials-panel.signup .slide-element:nth-child(2) { transition-delay: 0.1s; }
+        .credentials-panel.signup .slide-element:nth-child(3) { transition-delay: 0.2s; }
+        .credentials-panel.signup .slide-element:nth-child(4) { transition-delay: 0.3s; }
+        .credentials-panel.signup .slide-element:nth-child(5) { transition-delay: 0.4s; }
+        .credentials-panel.signup .slide-element:nth-child(6) { transition-delay: 0.5s; }
+
+        .auth-wrapper.toggled .credentials-panel.signup .slide-element {
+            transform: translateX(0%);
+            opacity: 1;
+            filter: blur(0px);
+        }
+
+        .credentials-panel h2 {
+            font-size: 28px;
+            text-align: center;
+            color: #fff;
+            margin-bottom: 4px;
+            font-weight: 700;
+        }
+
+        .credentials-panel .field-wrapper {
+            position: relative;
+            width: 100%;
+            height: 44px;
+            margin-top: 16px;
+        }
+
+        .field-wrapper input {
+            width: 100%;
+            height: 100%;
+            background: transparent;
+            border: none;
+            outline: none;
+            font-size: 14.5px;
+            color: #fff;
+            font-weight: 500;
+            border-bottom: 2px solid #fff;
+            padding-right: 52px;
+            transition: .4s;
+        }
+
+        .field-wrapper input:focus,
+        .field-wrapper input:valid {
+            border-bottom: 2px solid #00d4ff;
+        }
+
+        .field-wrapper label {
+            position: absolute;
+            top: 50%;
+            left: 0;
+            transform: translateY(-50%);
+            font-size: 14px;
+            color: #aaa;
+            transition: .4s;
+            pointer-events: none;
+        }
+
+        .field-wrapper input:focus ~ label,
+        .field-wrapper input:valid ~ label {
+            top: -6px;
+            color: #00d4ff;
+            font-size: 11.5px;
+        }
+
+        .field-wrapper i.fa-user,
+        .field-wrapper i.fa-envelope,
+        .field-wrapper i.fa-lock {
+            position: absolute;
+            top: 50%;
+            right: 0;
+            font-size: 15px;
+            transform: translateY(-50%);
+            color: #fff;
+        }
+
+        .pwd-toggle-icon {
+            position: absolute;
+            top: 50%;
+            right: 24px;
+            font-size: 14px;
+            transform: translateY(-50%);
+            color: #888;
+            cursor: pointer;
+            transition: color 0.2s;
+            z-index: 5;
+        }
+
+        .pwd-toggle-icon:hover {
+            color: #00d4ff !important;
+        }
+
+        .field-wrapper input:focus ~ i,
+        .field-wrapper input:valid ~ i {
+            color: #00d4ff;
+        }
+
+        .submit-button {
+            position: relative;
+            width: 100%;
+            height: 42px;
+            background: transparent;
+            border-radius: 40px;
+            cursor: pointer;
+            font-size: 15px;
+            font-weight: 600;
+            border: 2px solid #00d4ff;
+            color: #fff;
+            overflow: hidden;
+            z-index: 1;
+            transition: .3s;
+            margin-top: 14px;
+        }
+
+        .submit-button::before {
+            content: "";
+            position: absolute;
+            height: 300%;
+            width: 100%;
+            background: linear-gradient(#1a1a2e, #00d4ff, #1a1a2e, #00d4ff);
+            top: -100%;
+            left: 0;
+            z-index: -1;
+            transition: .5s;
+        }
+
+        .submit-button:hover:before {
+            top: 0;
+        }
+
+        .switch-link {
+            font-size: 12.5px;
+            text-align: center;
+            margin: 14px 0 4px;
+            color: #ccc;
+        }
+
+        .switch-link a {
+            text-decoration: none;
+            color: #00d4ff;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .switch-link a:hover {
+            text-decoration: underline;
+        }
+
+        /* Resource Meters & Progress Bars */
+        .resource-progress-bg {
+            width: 100%;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 999px;
+            overflow: hidden;
+            margin-top: 8px;
+        }
+        .resource-progress-fill {
+            height: 100%;
+            border-radius: 999px;
+            transition: width 0.5s ease, background 0.5s ease;
+        }
+
+        .welcome-section {
+            position: absolute;
+            top: 0;
+            height: 100%;
+            width: 50%;
+            display: flex;
+            justify-content: center;
+            flex-direction: column;
+            z-index: 5;
+        }
+
+        .welcome-section.signin {
+            right: 0;
+            text-align: right;
+            padding: 0 40px 60px 140px;
+        }
+
+        .welcome-section.signin .slide-element {
+            transform: translateX(0);
+            transition: .7s ease;
+            opacity: 1;
+        }
+
+        .welcome-section.signin .slide-element:nth-child(1) { transition-delay: 0.1s; }
+
+        .auth-wrapper.toggled .welcome-section.signin .slide-element {
+            transform: translateX(120%);
+            opacity: 0;
+            filter: blur(10px);
+        }
+
+        .welcome-section.signup {
+            left: 0;
+            text-align: left;
+            padding: 0 140px 60px 38px;
+            pointer-events: none;
+        }
+
+        .welcome-section.signup .slide-element {
+            transform: translateX(-120%);
+            transition: .7s ease;
+            opacity: 0;
+            filter: blur(10px);
+        }
+
+        .auth-wrapper.toggled .welcome-section.signup .slide-element {
+            transform: translateX(0%);
+            opacity: 1;
+            filter: blur(0);
+            transition-delay: 0.1s;
+        }
+
+        .welcome-section h2 {
+            text-transform: uppercase;
+            font-size: 34px;
+            line-height: 1.3;
+            color: #fff;
+            font-weight: 800;
+        }
+
+        .auth-wrapper .background-shape {
+            position: absolute;
+            right: 0;
+            top: -5px;
+            height: 600px;
+            width: 850px;
+            background: linear-gradient(45deg, #1a1a2e, #00d4ff);
+            transform: rotate(10deg) skewY(40deg);
+            transform-origin: bottom right;
+            transition: 1.5s ease;
+            transition-delay: 0.6s;
+            z-index: 2;
+        }
+
+        .auth-wrapper.toggled .background-shape {
+            transform: rotate(0deg) skewY(0deg);
+            transition-delay: .2s;
+        }
+
+        .auth-wrapper .secondary-shape {
+            position: absolute;
+            left: 250px;
+            top: 100%;
+            height: 700px;
+            width: 850px;
+            background: #1a1a2e;
+            border-top: 3px solid #00d4ff;
+            transform: rotate(0deg) skewY(0deg);
+            transform-origin: bottom left;
+            transition: 1.5s ease;
+            transition-delay: .2s;
+            z-index: 3;
+        }
+
+        .auth-wrapper.toggled .secondary-shape {
+            transform: rotate(-11deg) skewY(-41deg);
+            transition-delay: 0.5s;
+        }
+
+        .auth-alert {
+            background: rgba(224, 0, 0, 0.2);
+            border: 1px solid #e00000;
+            color: #ff8888;
+            padding: 6px 10px;
+            border-radius: 6px;
+            font-size: 11.5px;
+            margin-bottom: 6px;
+            text-align: center;
+        }
+
+        .footer {
+            margin-top: 20px;
+            text-align: center;
+            padding: 10px;
+            font-size: 14px;
+            color: #fff;
+            font-family: 'Poppins', sans-serif;
+        }
+
+        .footer a {
+            color: #00d4ff;
+            text-decoration: none;
+            font-weight: 600;
+            transition: .3s;
+        }
+
+        .footer a:hover {
+            text-decoration: underline;
+            color: #00b8d4;
+        }
+
+        @media (max-width: 768px) {
+            .auth-wrapper { height: auto; min-height: 480px; }
+            .auth-wrapper .credentials-panel { width: 100%; position: relative; }
+            .credentials-panel.signin, .credentials-panel.signup { padding: 30px 24px; left: 0; right: 0; }
+            .welcome-section, .auth-wrapper .background-shape, .auth-wrapper .secondary-shape { display: none; }
+            .credentials-panel.signup { display: none; }
+            .auth-wrapper.toggled .credentials-panel.signin { display: none; }
+            .auth-wrapper.toggled .credentials-panel.signup { display: flex; transform: none; filter: none; opacity: 1; }
+        }
+
+        /* --- DASHBOARD STYLES --- */
+        .top-nav {
+            height: 57px; background: var(--bg-topnav); border-bottom: 1px solid var(--border);
+            display: flex; align-items: center; justify-content: space-between; padding: 0 24px;
+            position: fixed; top: 0; left: 0; right: 0; z-index: 100; backdrop-filter: blur(8px);
+        }
+        .top-nav-left { display: flex; align-items: center; gap: 16px; }
+        .top-brand { display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 14px; color: #fff; }
+        .top-brand-icon { width: 28px; height: 28px; background: #fff; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: #000; }
+        .top-nav-right { display: flex; align-items: center; gap: 12px; font-size: 13px; }
+        
+        .user-profile {
+            display: flex; align-items: center; gap: 10px;
+            background: #111; padding: 5px 12px;
+            border-radius: 20px; border: 1px solid var(--border);
+            color: #fff; font-weight: 500; font-size: 12.5px;
+            cursor: pointer; transition: all 0.15s;
+        }
+        .user-profile:hover {
+            border-color: #10b981; background: #161616;
+        }
+        .role-pill {
+            font-size: 10.5px; padding: 2px 7px; border-radius: 10px;
+            font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em;
+        }
+        .role-admin { background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); }
+        .role-user { background: #222; color: #aaa; border: 1px solid #333; }
+        
+        .btn-logout {
+            background: transparent; border: none; color: #888;
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
+            padding: 4px; border-radius: 4px; transition: color 0.15s;
+        }
+        .btn-logout:hover { color: #e00000; }
+
+        .app-container { display: flex; width: 100vw; height: calc(100vh - 57px); margin-top: 57px; }
+        aside { width: 260px; background: var(--bg-sidebar); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 20px 14px; overflow-y: auto; gap: 20px; }
+        
+        .server-profile-box { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; background: #111; border: 1px solid var(--border); border-radius: 8px; }
+        .server-profile-info { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 500; color: #fff; }
+        .server-profile-icon { width: 24px; height: 24px; background: #222; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 12px; }
+
+        .nav-group { display: flex; flex-direction: column; gap: 4px; }
+        .nav-label { font-size: 11px; text-transform: uppercase; color: var(--text-muted); font-weight: 600; letter-spacing: 0.05em; padding: 0 10px 8px 10px; }
+        
+        .tab-btn { width: 100%; background: transparent; color: var(--text-muted); border: none; padding: 8px 12px; border-radius: 6px; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 10px; font-size: 13px; transition: all 0.1s ease; text-align: left; }
+        .tab-btn:hover { background: #111; color: var(--text-main); }
+        .tab-btn.active { background: #161616; color: #fff; font-weight: 600; border: 1px solid var(--border); }
+        .tab-status { width: 6px; height: 6px; border-radius: 50%; background: var(--warning); display: inline-block; flex-shrink: 0; }
+        .badge-bot-count { margin-left: auto; font-size: 11px; background: rgba(16, 185, 129, 0.15); color: #34d399; padding: 2px 8px; border-radius: 12px; border: 1px solid rgba(16, 185, 129, 0.3); font-family: 'JetBrains Mono', monospace; font-weight: 600; }
+
+        main { flex: 1; display: flex; flex-direction: column; overflow-y: auto; background: var(--bg-body); }
+        .server-header-bar { background: var(--bg-topnav); border-bottom: 1px solid var(--border); padding: 16px 28px; display: flex; justify-content: space-between; align-items: center; }
+        .server-title { font-size: 15px; font-weight: 600; display: flex; align-items: center; gap: 10px; color: #fff; }
+        .status-badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 20px; font-weight: 500; font-size: 11.5px; border: 1px solid var(--border); }
+
+        .content-area { padding: 28px; max-width: 1200px; width: 100%; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+        .page-view.hidden { display: none !important; }
+
+        .dash-section-header { margin-bottom: 2px; }
+        .dash-title { font-size: 18px; font-weight: 600; color: #ffffff; letter-spacing: -0.02em; }
+        .dash-subtitle { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
+
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
+        .stat-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 16px 20px; display: flex; flex-direction: column; gap: 6px; }
+        .stat-card .label { font-size: 12px; color: var(--text-muted); font-weight: 500; display: flex; align-items: center; gap: 8px; }
+        .stat-card .value { font-size: 13.5px; font-weight: 500; color: #f9fafb; font-family: 'JetBrains Mono', monospace; }
+
+        .console-wrapper { background: #000; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; display: flex; flex-direction: column; position: relative; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4); }
+        .console-header { background: #0a0a0a; padding: 10px 16px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; font-size: 12.5px; color: var(--text-muted); font-weight: 500; gap: 12px; flex-wrap: wrap; }
+        .console-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .console-terminal { height: 280px; overflow-y: auto; padding: 16px; font-family: 'JetBrains Mono', monospace; font-size: 12px; line-height: 1.6; }
+        .console-terminal:empty::before { content: "Console ready. No logs recorded yet. Start bot to stream output."; color: var(--text-muted); font-style: italic; opacity: 0.55; }
+        .console-terminal::-webkit-scrollbar { width: 6px; }
+        .console-terminal::-webkit-scrollbar-track { background: #050505; }
+        .console-terminal::-webkit-scrollbar-thumb { background: #262626; border-radius: 3px; }
+        .console-terminal::-webkit-scrollbar-thumb:hover { background: #404040; }
+        .log-line { margin-bottom: 2px; word-break: break-all; }
+        .log-sent { color: #38bdf8; }
+        .log-kicked, .log-error { color: #f87171; }
+        .log-auth { color: #c084fc; }
+
+        .players-box { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 18px; }
+        .players-box h4 { font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; font-weight: 600; }
+        .players-list { display: flex; flex-wrap: wrap; gap: 8px; max-height: 100px; overflow-y: auto; font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+        .player-tag { background: #161616; border: 1px solid var(--border); padding: 5px 10px; border-radius: 6px; color: #ededed; }
+
+        .action-bar { display: flex; flex-wrap: wrap; gap: 8px; }
+        .btn { display: inline-flex; align-items: center; gap: 7px; padding: 8px 14px; border-radius: 6px; font-weight: 500; font-size: 13px; cursor: pointer; border: 1px solid var(--border); transition: all 0.1s ease; background: #111; color: #fff; }
+        .btn:hover { background: #222; border-color: #444; }
+        .btn-sm { padding: 5px 10px; font-size: 12px; }
+        .btn-primary { background: #fff; color: #000; border-color: #fff; font-weight: 600; }
+        .btn-primary:hover { background: #e0e0e0; }
+        .btn-success { background: #10b981; color: white; border-color: #10b981; }
+        .btn-success:hover { background: #059669; }
+        .btn-danger { background: #e00000; color: white; border-color: #e00000; }
+        .btn-danger:hover { background: #b50000; }
+        .btn-secondary { background: #111; color: var(--text-main); }
+
+        @keyframes spinSlow {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        .spin-animation {
+            animation: spinSlow 0.6s linear infinite;
+            display: inline-block;
+        }
+
+        .chat-form-wrapper { position: relative; width: 100%; }
+        .chat-form { display: flex; gap: 8px; width: 100%; }
+        .chat-input { flex: 1; background: var(--bg-input); border: 1px solid var(--border); border-radius: 6px; padding: 10px 14px; color: white; font-size: 13px; outline: none; }
+        .chat-input:focus { border-color: var(--border-focus); }
+
+        .ai-chat-box { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; height: 380px; display: flex; flex-direction: column; overflow: hidden; }
+        .ai-messages { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+        .ai-msg { max-width: 80%; padding: 10px 14px; border-radius: 8px; font-size: 13px; line-height: 1.5; white-space: pre-wrap; }
+        .ai-msg.user { align-self: flex-end; background: #10b981; color: #fff; }
+        .ai-msg.bot { align-self: flex-start; background: #161616; border: 1px solid var(--border); color: #ededed; }
+
+        .smp-card-container { max-width: 480px; width: 100%; margin: 10px 0; }
+        .smp-embed { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 24px; display: flex; flex-direction: column; gap: 16px; }
+        .smp-header { display: flex; align-items: center; gap: 12px; }
+        .smp-header h3 { font-size: 16px; font-weight: 600; color: #ffffff; }
+        .smp-divider { height: 1px; background: var(--border); margin: 4px 0; }
+        .smp-field { display: flex; flex-direction: column; gap: 4px; }
+        .smp-field-label { font-size: 11.5px; font-weight: 500; color: var(--text-muted); }
+        .smp-field-value { display: flex; align-items: center; gap: 8px; font-size: 13.5px; font-weight: 500; color: #ffffff; font-family: 'JetBrains Mono', monospace; }
+        .smp-connect-box { background: var(--bg-input); border: 1px solid var(--border); border-radius: 6px; padding: 10px 14px; font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #e5e7eb; display: flex; align-items: center; justify-content: space-between; cursor: pointer; }
+
+        .toast-notification { position: fixed; bottom: 24px; right: 24px; background: #18181b; color: #f4f4f5; border: 1px solid #3f3f46; border-radius: 8px; padding: 10px 16px; font-size: 13px; font-weight: 500; z-index: 99999; opacity: 0; transform: translateY(12px); transition: all 0.2s ease; pointer-events: none; }
+        .toast-notification.show { opacity: 1; transform: translateY(0); }
+
+        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(5px); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+        .modal-box { background: #0f0f10; border: 1px solid var(--border); border-radius: 12px; width: 90%; max-width: 520px; padding: 24px; max-height: 90vh; overflow-y: auto; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .modal-close { background: none; border: none; color: var(--text-muted); font-size: 22px; cursor: pointer; }
+        .modal-field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; position: relative; }
+        .modal-field label { font-size: 12px; font-weight: 500; color: var(--text-muted); }
+        .modal-input { background: var(--bg-input); border: 1px solid var(--border); border-radius: 6px; color: #fff; padding: 9px 12px; font-size: 13px; outline: none; }
+        .modal-input:focus { border-color: #10b981; }
+        .modal-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+
+        .ai-chips-bar { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 10px 0; }
+        .ai-chip { background: #161616; border: 1px solid var(--border); border-radius: 20px; padding: 5px 12px; font-size: 11.5px; color: var(--text-main); cursor: pointer; }
+        .ai-chip:hover { background: #222; color: #fff; }
+
+        .bots-fleet-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; margin-top: 4px; }
+        .bot-fleet-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 14px; position: relative; }
+        .bot-fleet-header { display: flex; align-items: center; justify-content: space-between; }
+        .bot-avatar-box { display: flex; align-items: center; gap: 12px; }
+        .bot-avatar-icon { width: 40px; height: 40px; background: #141414; border: 1px solid var(--border); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #fff; }
+        .bot-meta-title { font-size: 15px; font-weight: 600; color: #fff; }
+        .bot-meta-server { font-size: 12px; color: var(--text-muted); }
+        .bot-info-table { display: flex; flex-direction: column; gap: 8px; background: #000; border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; }
+        .bot-info-row { display: flex; justify-content: space-between; align-items: center; font-size: 12px; }
+        .bot-actions-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 4px; }
+
+        /* Admin panel tables & matrix */
+        .admin-table { width: 100%; border-collapse: collapse; font-size: 13px; text-align: left; }
+        .admin-table th { background: #111; color: var(--text-muted); font-size: 11.5px; text-transform: uppercase; padding: 10px 14px; border-bottom: 1px solid var(--border); }
+        .admin-table td { padding: 12px 14px; border-bottom: 1px solid #181818; }
+        .admin-table tr:hover td { background: #0d0d0d; }
+
+        /* Modal sub-section card */
+        .modal-subcard { background: #000; border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+        .modal-subcard-title { font-size: 13px; font-weight: 600; color: #fff; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+
+        /* Uptime live text style */
+        .uptime-live-text {
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 600;
+            color: #10b981;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        @media (max-width: 500px) {
+            .social-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div id="toastBox" class="toast-notification"></div>
+
+    <!-- FULL PAGE LOGIN & SIGNUP SCREEN -->
+    <div id="authOverlay">
+        <div class="auth-wrapper">
+            <div class="background-shape"></div>
+            <div class="secondary-shape"></div>
+
+            <!-- SIGN IN PANEL -->
+            <div class="credentials-panel signin">
+                <h2 class="slide-element">Login</h2>
+                <div id="loginAlert" class="auth-alert" style="display: none;"></div>
+
+                <form id="authLoginForm" onsubmit="handleLoginSubmit(event)">
+                    <div class="field-wrapper slide-element">
+                        <input type="text" id="loginUsername" required autocomplete="username">
+                        <label for="loginUsername">Username or Email</label>
+                        <i class="fa-solid fa-user"></i>
+                    </div>
+
+                    <div class="field-wrapper slide-element">
+                        <input type="password" id="loginPassword" required autocomplete="current-password">
+                        <label for="loginPassword">Password</label>
+                        <i class="fa-solid fa-eye-slash pwd-toggle-icon" onclick="togglePwdVisibility('loginPassword', this)" title="Show/Hide Password"></i>
+                        <i class="fa-solid fa-lock"></i>
+                    </div>
+
+                    <div class="field-wrapper slide-element">
+                        <button class="submit-button" type="submit" id="btnLoginSubmit">Login</button>
+                    </div>
+
+                    <div class="switch-link slide-element">
+                        <p>Don't have an account? <br> <a class="register-trigger" onclick="toggleAuthForm(true)">Sign Up</a></p>
+                    </div>
+                </form>
+            </div>
+
+            <div class="welcome-section signin">
+                <h2 class="slide-element">WELCOME BACK!</h2>
+            </div>
+
+            <!-- SIGN UP PANEL -->
+            <div class="credentials-panel signup">
+                <h2 class="slide-element">Register</h2>
+                <div id="registerAlert" class="auth-alert" style="display: none;"></div>
+
+                <form id="authRegisterForm" onsubmit="handleRegisterSubmit(event)">
+                    <div class="field-wrapper slide-element">
+                        <input type="text" id="regUsername" required autocomplete="username">
+                        <label for="regUsername">Username</label>
+                        <i class="fa-solid fa-user"></i>
+                    </div>
+
+                    <div class="field-wrapper slide-element">
+                        <input type="email" id="regEmail" required autocomplete="email">
+                        <label for="regEmail">Email</label>
+                        <i class="fa-solid fa-envelope"></i>
+                    </div>
+
+                    <div class="field-wrapper slide-element">
+                        <input type="password" id="regPassword" required autocomplete="new-password">
+                        <label for="regPassword">Password</label>
+                        <i class="fa-solid fa-eye-slash pwd-toggle-icon" onclick="togglePwdVisibility('regPassword', this)" title="Show/Hide Password"></i>
+                        <i class="fa-solid fa-lock"></i>
+                    </div>
+
+                    <div class="field-wrapper slide-element">
+                        <button class="submit-button" type="submit" id="btnRegisterSubmit">Register</button>
+                    </div>
+
+                    <div class="switch-link slide-element">
+                        <p>Already have an account? <br> <a class="login-trigger" onclick="toggleAuthForm(false)">Sign In</a></p>
+                    </div>
+                </form>
+            </div>
+
+            <div class="welcome-section signup">
+                <h2 class="slide-element">WELCOME!</h2>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>Made with ❤️ by <a href="#" target="_blank">Odin Lux</a></p>
+        </div>
+    </div>
+
+    <!-- SERVER CONFIGURE / ADD MODAL -->
+    <div id="editModal" class="modal-overlay" style="display: none;">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h3 id="modalTitle">Configure Server</h3>
+                <button class="modal-close" onclick="closeEditModal()">&times;</button>
+            </div>
+            <form id="editServerForm" onsubmit="handleSaveServer(event)">
+                <input type="hidden" id="editServerId">
+                <input type="hidden" id="modalMode" value="edit">
+                <div class="modal-field">
+                    <label>Server Display Name</label>
+                    <input type="text" id="editServerName" required class="modal-input" placeholder="e.g. My Survival Realm">
+                </div>
+                <div class="modal-grid-2">
+                    <div class="modal-field">
+                        <label>Server Host / IP</label>
+                        <input type="text" id="editServerHost" required class="modal-input" placeholder="e.g. 192.168.1.5">
+                    </div>
+                    <div class="modal-field">
+                        <label>Port</label>
+                        <input type="number" id="editServerPort" required class="modal-input" placeholder="25565">
+                    </div>
+                </div>
+                <div class="modal-grid-2">
+                    <div class="modal-field">
+                        <label>Bot Username (3-16 chars, no spaces)</label>
+                        <input type="text" id="editServerUsername" required class="modal-input" placeholder="AFK_Steve" maxlength="16" oninput="this.value = this.value.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '')">
+                    </div>
+                    <div class="modal-field">
+                        <label>MC Version</label>
+                        <select id="editServerVersion" class="modal-input" style="background: var(--bg-input); color: #fff;">
+                            <option value="auto">Auto-detect (recommended)</option>
+                            <option value="1.21">1.21 / 1.21.x</option>
+                            <option value="1.20.4">1.20.4</option>
+                            <option value="1.20.2">1.20.2</option>
+                            <option value="1.20.1">1.20.1</option>
+                            <option value="1.19.4">1.19.4</option>
+                            <option value="1.18.2">1.18.2</option>
+                            <option value="1.16.5">1.16.5</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-field">
+                    <label>Password (optional, for AuthMe / /login)</label>
+                    <input type="password" id="editServerPassword" class="modal-input" placeholder="Leave empty if none">
+                </div>
+                <div class="modal-field">
+                    <label>Description (optional)</label>
+                    <input type="text" id="editServerDesc" class="modal-input" placeholder="e.g. Hardcore Survival SMP">
+                </div>
+                <div class="modal-field" id="startNowField">
+                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; color: #fff;">
+                        <input type="checkbox" id="editServerStartNow" checked style="accent-color: #10b981;">
+                        <span>Keep bot running 24/7 (even when panel/system is closed)</span>
+                    </label>
+                </div>
+                <div class="modal-actions" style="justify-content: space-between; align-items: center;">
+                    <button type="button" id="btnDeleteServer" class="btn btn-danger" onclick="handleDeleteCurrentServer()" style="display: none;">
+                        <i data-lucide="trash-2" size="13"></i> Delete
+                    </button>
+                    <div style="display: flex; gap: 10px; margin-left: auto;">
+                        <button type="button" class="btn btn-secondary" onclick="closeEditModal()">Cancel</button>
+                        <button type="submit" id="btnSaveServer" class="btn btn-success">Save & Apply</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ACCOUNT SETTINGS & CUSTOMIZATION MODAL -->
+    <div id="accountModal" class="modal-overlay" style="display: none;">
+        <div class="modal-box">
+            <div class="modal-header">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <div style="width: 32px; height: 32px; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #10b981;">
+                        <i data-lucide="user-cog" size="16"></i>
+                    </div>
+                    <div>
+                        <h3 style="font-size: 16px; color: #fff; font-weight: 600;">Account Settings & Security</h3>
+                        <p style="font-size: 11.5px; color: var(--text-muted);">Manage your profile, credentials, and password</p>
+                    </div>
+                </div>
+                <button class="modal-close" onclick="closeAccountModal()">&times;</button>
+            </div>
+
+            <div id="accountAlert" class="auth-alert" style="display: none;"></div>
+
+            <!-- Profile Info Section -->
+            <div class="modal-subcard">
+                <div class="modal-subcard-title">
+                    <i data-lucide="id-card" size="14" style="color: #10b981;"></i>
+                    <span>Profile Details</span>
+                </div>
+                <form id="profileForm" onsubmit="handleUpdateProfile(event)">
+                    <div class="modal-field">
+                        <label>Username</label>
+                        <input type="text" id="accUsername" required class="modal-input" placeholder="Display username">
+                    </div>
+                    <div class="modal-field">
+                        <label>Email Address</label>
+                        <input type="email" id="accEmail" required class="modal-input" placeholder="Account email">
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px;">
+                        <span style="font-size: 11px; color: var(--text-muted);" id="accRoleBadge">Role: User</span>
+                        <button type="submit" class="btn btn-secondary btn-sm" id="btnSaveProfile">
+                            <i data-lucide="save" size="12"></i> Save Profile
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Change Password Section -->
+            <div class="modal-subcard">
+                <div class="modal-subcard-title">
+                    <i data-lucide="key" size="14" style="color: #f5a623;"></i>
+                    <span>Change Password</span>
+                </div>
+                <form id="passwordForm" onsubmit="handleChangePassword(event)">
+                    <div class="modal-field">
+                        <label>Current Password</label>
+                        <div style="position: relative;">
+                            <input type="password" id="accCurrentPassword" required class="modal-input" style="width: 100%; padding-right: 36px;" placeholder="Enter current password">
+                            <button type="button" class="pwd-toggle-btn" style="top: 8px; right: 8px;" onclick="togglePwdVisibility('accCurrentPassword', this.querySelector('i'))">
+                                <i class="fa-solid fa-eye-slash"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="modal-grid-2">
+                        <div class="modal-field">
+                            <label>New Password</label>
+                            <div style="position: relative;">
+                                <input type="password" id="accNewPassword" required minlength="4" class="modal-input" style="width: 100%; padding-right: 36px;" placeholder="Min 4 characters">
+                                <button type="button" class="pwd-toggle-btn" style="top: 8px; right: 8px;" onclick="togglePwdVisibility('accNewPassword', this.querySelector('i'))">
+                                    <i class="fa-solid fa-eye-slash"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="modal-field">
+                            <label>Confirm New</label>
+                            <div style="position: relative;">
+                                <input type="password" id="accConfirmPassword" required minlength="4" class="modal-input" style="width: 100%; padding-right: 36px;" placeholder="Confirm password">
+                                <button type="button" class="pwd-toggle-btn" style="top: 8px; right: 8px;" onclick="togglePwdVisibility('accConfirmPassword', this.querySelector('i'))">
+                                    <i class="fa-solid fa-eye-slash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div style="display: flex; justify-content: flex-end; margin-top: 10px;">
+                        <button type="submit" class="btn btn-success btn-sm" id="btnUpdatePassword">
+                            <i data-lucide="lock" size="12"></i> Update Password
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <div class="modal-actions" style="margin-top: 10px;">
+                <button type="button" class="btn btn-secondary" onclick="closeAccountModal()">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ADMIN RESET USER PASSWORD MODAL -->
+    <div id="adminResetModal" class="modal-overlay" style="display: none;">
+        <div class="modal-box" style="max-width: 420px;">
+            <div class="modal-header">
+                <h3 id="adminResetTitle">Reset User Password</h3>
+                <button class="modal-close" onclick="closeAdminResetModal()">&times;</button>
+            </div>
+            <input type="hidden" id="adminResetUserId">
+            <div class="modal-field">
+                <label>Set New Password</label>
+                <div style="position: relative;">
+                    <input type="password" id="adminResetNewPassword" required minlength="4" class="modal-input" style="width: 100%; padding-right: 36px;" placeholder="Enter new password">
+                    <button type="button" class="pwd-toggle-btn" style="top: 8px; right: 8px;" onclick="togglePwdVisibility('adminResetNewPassword', this.querySelector('i'))">
+                        <i class="fa-solid fa-eye-slash"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-secondary" onclick="closeAdminResetModal()">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="submitAdminResetPassword()">Apply Reset</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ADMIN PERMISSIONS MODAL -->
+    <div id="permissionsModal" class="modal-overlay" style="display: none;">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h3 id="permModalTitle">Server Permissions</h3>
+                <button class="modal-close" onclick="closePermModal()">&times;</button>
+            </div>
+            <div style="font-size: 13px; color: var(--text-muted); margin-bottom: 16px;">
+                Select which registered users can view, command, and operate this server instance:
+            </div>
+            <input type="hidden" id="permServerId">
+            <div id="permUsersChecklist" style="display: flex; flex-direction: column; gap: 8px; max-height: 220px; overflow-y: auto; background: #000; border: 1px solid var(--border); padding: 12px; border-radius: 8px; margin-bottom: 16px;"></div>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-secondary" onclick="closePermModal()">Cancel</button>
+                <button type="button" class="btn btn-success" onclick="saveServerPermissions()">Save Permissions</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- GENERIC IN-APP CONFIRMATION MODAL (Replaces blocking window.confirm) -->
+    <div id="genericConfirmModal" class="modal-overlay" style="display: none; z-index: 10000;">
+        <div class="modal-box" style="max-width: 440px; border-color: rgba(224, 0, 0, 0.4); box-shadow: 0 20px 40px rgba(0, 0, 0, 0.8);">
+            <div class="modal-header">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <div style="width: 34px; height: 34px; background: rgba(224, 0, 0, 0.15); border: 1px solid rgba(224, 0, 0, 0.35); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #e00000; flex-shrink: 0;">
+                        <i data-lucide="alert-triangle" size="18"></i>
+                    </div>
+                    <div>
+                        <h3 id="genericConfirmTitle" style="font-size: 15px; color: #fff; font-weight: 600;">Confirm Action</h3>
+                        <p id="genericConfirmSubtitle" style="font-size: 11.5px; color: var(--text-muted); margin: 0;">This operation requires your confirmation</p>
+                    </div>
+                </div>
+                <button class="modal-close" onclick="closeGenericConfirm()">&times;</button>
+            </div>
+            <div id="genericConfirmMessage" style="font-size: 13px; color: #e5e7eb; line-height: 1.5; margin: 16px 0 20px 0; background: #0a0a0a; border: 1px solid var(--border); padding: 14px; border-radius: 8px;">
+                Are you sure you want to proceed?
+            </div>
+            <div class="modal-actions" style="justify-content: flex-end; gap: 10px;">
+                <button type="button" class="btn btn-secondary" onclick="closeGenericConfirm()">Cancel</button>
+                <button type="button" id="genericConfirmBtn" class="btn btn-danger">Confirm Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN APP DASHBOARD -->
+    <div class="top-nav">
+        <div class="top-nav-left">
+            <div class="top-brand">
+                <div class="top-brand-icon"><i data-lucide="shield" size="14"></i></div>
+                <span>OdinLux Control Panel</span>
+            </div>
+        </div>
+        <div class="top-nav-right">
+            <button class="btn btn-secondary btn-sm" onclick="openAddServerModal()">
+                <i data-lucide="plus" size="12"></i> Add Server
+            </button>
+            <div class="user-profile" onclick="openAccountModal()" title="Click to customize profile or change password">
+                <i data-lucide="user" size="13" style="color: #10b981;"></i>
+                <span id="topNavUsername">Loading...</span>
+                <span id="topNavUserRole" class="role-pill role-user">User</span>
+                <i data-lucide="settings" size="11" style="color: var(--text-muted); margin-left: 2px;"></i>
+                <button class="btn-logout" onclick="event.stopPropagation(); handleLogout()" title="Log out">
+                    <i data-lucide="log-out" size="12"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="app-container">
+        <aside>
+            <div class="server-profile-box">
+                <div class="server-profile-info">
+                    <div class="server-profile-icon"><i data-lucide="bot" size="13"></i></div>
+                    <span id="sidebarServerTitle">Bots Fleet</span>
+                </div>
+                <i data-lucide="chevron-down" size="14" style="color: var(--text-muted);"></i>
+            </div>
+
+            <div class="nav-group">
+                <div class="nav-label">Overview</div>
+                <button class="tab-btn active" id="tab-bots-dashboard" onclick="switchView('bots-dashboard', 'Bots Fleet Dashboard')">
+                    <i data-lucide="layout-dashboard" size="14" style="color: #10b981;"></i>
+                    <span>Bots Dashboard</span>
+                    <span class="badge-bot-count" id="sidebarActiveBotsBadge">0/0</span>
+                </button>
+            </div>
+
+            <!-- ADMIN TAB (ONLY VISIBLE FOR ADMINS) -->
+            <div class="nav-group" id="adminNavGroup" style="display: none;">
+                <div class="nav-label">Administration</div>
+                <button class="tab-btn" id="tab-admin-panel" onclick="switchView('admin-panel', 'Admin Panel')">
+                    <i data-lucide="shield-alert" size="14" style="color: #f5a623;"></i>
+                    <span>Admin Panel</span>
+                </button>
+            </div>
+
+            <div class="nav-group">
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 0 10px 8px 10px;">
+                    <span class="nav-label" style="padding: 0;">Instances</span>
+                    <button class="btn btn-secondary btn-sm" onclick="openAddServerModal()" style="padding: 2px 8px; font-size: 11px; height: 22px; gap: 4px;">
+                        <i data-lucide="plus" size="11"></i> Add
+                    </button>
+                </div>
+                <div id="tabsNavServers"></div>
+            </div>
+
+            <div class="nav-group" style="margin-top: 8px;">
+                <div class="nav-label">AI & Intelligence</div>
+                <button class="tab-btn" id="tab-gemini-ai" onclick="switchView('gemini-ai', 'Gemini Minecraft AI')">
+                    <i data-lucide="sparkles" size="14" style="color: #a855f7;"></i>
+                    <span>Minecraft Gemini AI</span>
+                </button>
+            </div>
+
+            <div class="nav-group" style="margin-top: 8px;">
+                <div class="nav-label">Monitoring</div>
+                <div id="tabsNavSmp"></div>
+            </div>
+        </aside>
+
+        <main>
+            <!-- BOTS FLEET DASHBOARD VIEW -->
+            <div class="page-view" id="view-bots-dashboard">
+                <div class="server-header-bar">
+                    <div class="server-title">
+                        <i data-lucide="layout-dashboard" size="15" style="color: #10b981;"></i>
+                        <span>Bots Fleet Overview</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span class="status-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border-color: rgba(16, 185, 129, 0.3);">
+                            <span id="fleetActiveCount">0</span> Online
+                        </span>
+                        <button class="btn btn-secondary btn-sm" id="btnRefreshFleet" onclick="handleRefreshFleet()" title="Refresh bot statuses, uptimes, and server connections">
+                            <i data-lucide="rotate-cw" size="12" id="iconRefreshFleet"></i> Refresh Fleet
+                        </button>
+                        <button class="btn btn-secondary btn-sm" onclick="openAddServerModal()">
+                            <i data-lucide="plus" size="12"></i> Add Instance
+                        </button>
+                    </div>
+                </div>
+
+                <div class="content-area">
+                    <!-- Real-Time CPU, Memory & Fleet Performance Stat Cards -->
+                    <div class="stats-grid" id="fleetResourceStatsGrid" style="margin-bottom: 24px;">
+                        <div class="stat-card" style="position: relative; overflow: hidden;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <span class="label"><i data-lucide="cpu" size="14" style="color: #38bdf8;"></i> Bot Engine CPU</span>
+                                <span id="badgeCpuLevel" style="font-size: 11px; padding: 2px 8px; border-radius: 4px; background: rgba(56, 189, 248, 0.12); color: #38bdf8; font-weight: 600; border: 1px solid rgba(56, 189, 248, 0.25);">Optimal</span>
+                            </div>
+                            <div style="display: flex; align-items: baseline; gap: 8px; margin-top: 2px;">
+                                <span class="value" id="valSysCpu" style="font-size: 22px; font-weight: 700; color: #fff;">0.0%</span>
+                                <span style="font-size: 11.5px; color: var(--text-muted);" id="valSysCores">Multi-core</span>
+                            </div>
+                            <div class="resource-progress-bg">
+                                <div id="barSysCpu" class="resource-progress-fill" style="width: 2%; background: #38bdf8;"></div>
+                            </div>
+                            <span style="font-size: 11px; color: var(--text-muted); margin-top: 4px;" id="valSysCpuSub">Process CPU • Load Avg: 0.00</span>
+                        </div>
+
+                        <div class="stat-card" style="position: relative; overflow: hidden;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <span class="label"><i data-lucide="hard-drive" size="14" style="color: #a855f7;"></i> Process Memory (RAM)</span>
+                                <span id="badgeMemLevel" style="font-size: 11px; padding: 2px 8px; border-radius: 4px; background: rgba(168, 85, 247, 0.12); color: #a855f7; font-weight: 600; border: 1px solid rgba(168, 85, 247, 0.25);">Healthy</span>
+                            </div>
+                            <div style="display: flex; align-items: baseline; gap: 8px; margin-top: 2px;">
+                                <span class="value" id="valSysMemRss" style="font-size: 22px; font-weight: 700; color: #fff;">0.0 MB</span>
+                                <span style="font-size: 11.5px; color: var(--text-muted);" id="valSysMemHeap">Heap: 0 MB</span>
+                            </div>
+                            <div class="resource-progress-bg">
+                                <div id="barSysMem" class="resource-progress-fill" style="width: 10%; background: #a855f7;"></div>
+                            </div>
+                            <span style="font-size: 11px; color: var(--text-muted); margin-top: 4px;" id="valSysMemSub">Allocated for active bot threads</span>
+                        </div>
+
+                        <div class="stat-card" style="position: relative; overflow: hidden;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <span class="label"><i data-lucide="bot" size="14" style="color: #10b981;"></i> Active Bot Fleet</span>
+                                <span id="badgeFleetActive" style="font-size: 11px; padding: 2px 8px; border-radius: 4px; background: rgba(16, 185, 129, 0.12); color: #10b981; font-weight: 600; border: 1px solid rgba(16, 185, 129, 0.25);">24/7 AFK</span>
+                            </div>
+                            <div style="display: flex; align-items: baseline; gap: 8px; margin-top: 2px;">
+                                <span class="value" id="valFleetRatio" style="font-size: 22px; font-weight: 700; color: #10b981;">0 / 0</span>
+                                <span style="font-size: 11.5px; color: var(--text-muted);">Bots Online</span>
+                            </div>
+                            <div class="resource-progress-bg">
+                                <div id="barFleetRatio" class="resource-progress-fill" style="width: 0%; background: #10b981;"></div>
+                            </div>
+                            <span style="font-size: 11px; color: var(--text-muted); margin-top: 4px;" id="valFleetSub">Auto-reconnect & anti-AFK armed</span>
+                        </div>
+
+                        <div class="stat-card" style="position: relative; overflow: hidden;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <span class="label"><i data-lucide="activity" size="14" style="color: #f59e0b;"></i> Bot Runtime Engine</span>
+                                <span style="font-size: 11px; padding: 2px 8px; border-radius: 4px; background: rgba(245, 158, 11, 0.12); color: #f59e0b; font-weight: 600; border: 1px solid rgba(245, 158, 11, 0.25);">Online</span>
+                            </div>
+                            <div style="display: flex; align-items: baseline; gap: 8px; margin-top: 2px;">
+                                <span class="value" id="valSysUptime" style="font-size: 22px; font-weight: 700; color: #fff;">0m</span>
+                                <span style="font-size: 11.5px; color: var(--text-muted);">Process Uptime</span>
+                            </div>
+                            <div class="resource-progress-bg">
+                                <div class="resource-progress-fill" style="width: 100%; background: #f59e0b;"></div>
+                            </div>
+                            <span style="font-size: 11px; color: var(--text-muted); margin-top: 4px;" id="valSysEngineSub">Mineflayer v4.23 • Node.js</span>
+                        </div>
+                    </div>
+
+                    <div class="dash-section-header">
+                        <div class="dash-title">Managed Minecraft Bots (24/7 Real-Time Uptime)</div>
+                        <div class="dash-subtitle">Continuous live connection timers, real-time status, and Anti-AFK persistence across all instances</div>
+                    </div>
+                    <div class="bots-fleet-grid" id="fleetCardsContainer"></div>
+                </div>
+            </div>
+
+            <!-- ADMIN PANEL VIEW (ADMINS ONLY) -->
+            <div class="page-view hidden" id="view-admin-panel">
+                <div class="server-header-bar">
+                    <div class="server-title">
+                        <i data-lucide="shield-alert" size="15" style="color: #f5a623;"></i>
+                        <span>Admin Access & User Management</span>
+                    </div>
+                    <button class="btn btn-secondary btn-sm" id="btnAdminRefresh" onclick="fetchAdminUsers(true)" title="Refresh registered user roster and permissions">
+                        <i data-lucide="rotate-cw" size="12" id="iconAdminRefresh"></i> Refresh
+                    </button>
+                </div>
+
+                <div class="content-area">
+                    <div class="dash-section-header">
+                        <div class="dash-title">Master Control & Server Access</div>
+                        <div class="dash-subtitle">Manage user accounts, reset passwords, assign admin privileges, and control which users can view/command specific servers.</div>
+                    </div>
+
+                    <div style="background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; overflow: hidden;">
+                        <div style="padding: 16px 20px; border-bottom: 1px solid var(--border); font-size: 14px; font-weight: 600; color: #fff;">
+                            Registered Users Roster
+                        </div>
+                        <div style="overflow-x: auto;">
+                            <table class="admin-table">
+                                <thead>
+                                    <tr>
+                                        <th>User</th>
+                                        <th>Email</th>
+                                        <th>Role</th>
+                                        <th>Owned Servers</th>
+                                        <th>Created Date</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="adminUsersTbody">
+                                    <tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 24px;">Loading users list...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div style="background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin-top: 10px;">
+                        <div style="padding: 16px 20px; border-bottom: 1px solid var(--border); font-size: 14px; font-weight: 600; color: #fff;">
+                            Server Access Permissions Matrix
+                        </div>
+                        <div style="overflow-x: auto;">
+                            <table class="admin-table">
+                                <thead>
+                                    <tr>
+                                        <th>Server Name</th>
+                                        <th>Host & Port</th>
+                                        <th>Owner</th>
+                                        <th>Granted Users</th>
+                                        <th>Manage Access</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="adminServersTbody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SERVER VIEWS CONTAINER -->
+            <div id="viewsContainer"></div>
+            
+            <!-- GEMINI AI VIEW -->
+            <div class="page-view hidden" id="view-gemini-ai">
+                <div class="server-header-bar">
+                    <div class="server-title">
+                        <i data-lucide="sparkles" size="15" style="color: #a855f7;"></i>
+                        <span>Gemini Minecraft Assistant</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <button class="btn btn-secondary btn-sm" onclick="clearAiChat()">
+                            <i data-lucide="trash" size="12"></i> Clear
+                        </button>
+                    </div>
+                </div>
+
+                <div class="content-area">
+                    <div class="dash-section-header">
+                        <div class="dash-title">AI Minecraft Expert</div>
+                        <div class="dash-subtitle">Ask crafting recipes, redstone circuits, server administration commands, and troubleshooting tips. Players can also ask in-game via <code>!ai &lt;question&gt;</code>!</div>
+                    </div>
+
+                    <div class="ai-chips-bar">
+                        <button type="button" class="ai-chip" onclick="askQuickPrompt('Best Y level and techniques for mining diamonds in 1.20+')">💎 Mining Diamonds</button>
+                        <button type="button" class="ai-chip" onclick="askQuickPrompt('How do I build a simple compact redstone item sorter?')">⚡ Item Sorter</button>
+                        <button type="button" class="ai-chip" onclick="askQuickPrompt('What are the best enchantments for netherite armor and sword?')">🛡️ Best Enchantments</button>
+                        <button type="button" class="ai-chip" onclick="askQuickPrompt('List essential Minecraft server operator OP admin commands')">⚙️ Admin Commands</button>
+                        <button type="button" class="ai-chip" onclick="askQuickPrompt('How to brew Strength II and Invisibility potions?')">🧪 Brewing Guide</button>
+                        <button type="button" class="ai-chip" onclick="askQuickPrompt('How to optimize a Minecraft server to reduce lag and increase TPS?')">🚀 Server Optimization</button>
+                    </div>
+
+                    <div class="ai-chat-box">
+                        <div class="ai-messages" id="aiMessagesContainer">
+                            <div class="ai-msg bot">Hello! I am your Minecraft AI Assistant. How can I help you manage your server, optimize commands, or craft items today? You can also type <code>!ai &lt;question&gt;</code> in Minecraft chat!</div>
+                        </div>
+                    </div>
+
+                    <form class="chat-form" onsubmit="handleAiSubmit(event)">
+                        <input type="text" class="chat-input" id="aiInput" placeholder="Ask anything about Minecraft, commands, or server config..." required autocomplete="off">
+                        <button type="submit" class="btn btn-success" id="btnAskAi"><i data-lucide="send" size="13"></i> Ask AI</button>
+                    </form>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        let currentUser = null;
+        let serversConfig = [];
+        let allRegisteredUsers = [];
+        let activeViewId = 'bots-dashboard';
+        let activeDisplayName = 'Bots Fleet Dashboard';
+        let isSignUpMode = false;
+        const consoleLogsCache = {};
+        const botStatusCache = {};
+        const botPositionCache = {};
+        const botUptimeCache = {};
+
+        // --- PASSWORD VISIBILITY TOGGLE ---
+        function togglePwdVisibility(inputId, iconEl) {
+            const input = document.getElementById(inputId);
+            if (!input) return;
+            if (input.type === 'password') {
+                input.type = 'text';
+                if (iconEl) {
+                    iconEl.classList.remove('fa-eye-slash');
+                    iconEl.classList.add('fa-eye');
+                }
+            } else {
+                input.type = 'password';
+                if (iconEl) {
+                    iconEl.classList.remove('fa-eye');
+                    iconEl.classList.add('fa-eye-slash');
+                }
+            }
+        }
+
+        // --- SLIDING AUTH PANEL TOGGLE (SIGN IN vs SIGN UP) ---
+        function toggleAuthForm(isRegister) {
+            const wrapper = document.querySelector('.auth-wrapper');
+            if (!wrapper) return;
+            if (isRegister) {
+                wrapper.classList.add('toggled');
+            } else {
+                wrapper.classList.remove('toggled');
+            }
+        }
+
+        async function handleLoginSubmit(e) {
+            e.preventDefault();
+            const alertEl = document.getElementById('loginAlert');
+            if (alertEl) alertEl.style.display = 'none';
+            const btn = document.getElementById('btnLoginSubmit');
+            if (btn) btn.disabled = true;
+
+            const username = document.getElementById('loginUsername').value.trim();
+            const password = document.getElementById('loginPassword').value;
+
+            try {
+                const res = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    localStorage.setItem('odinlux_token', data.token);
+                    currentUser = data.user;
+                    hideAuthScreen();
+                    socket.emit('authenticate', { token: data.token });
+                    showToast('Logged in as ' + currentUser.username);
+                    if (currentUser.role === 'admin') fetchAdminUsers();
+            fetchSystemStats();
+                } else {
+                    if (alertEl) {
+                        alertEl.textContent = data.message || 'Login failed';
+                        alertEl.style.display = 'block';
+                    }
+                }
+            } catch (err) {
+                if (alertEl) {
+                    alertEl.textContent = 'Server connection error: ' + err.message;
+                    alertEl.style.display = 'block';
+                }
+            } finally {
+                if (btn) btn.disabled = false;
+            }
+        }
+
+        async function handleRegisterSubmit(e) {
+            e.preventDefault();
+            const alertEl = document.getElementById('registerAlert');
+            if (alertEl) alertEl.style.display = 'none';
+            const btn = document.getElementById('btnRegisterSubmit');
+            if (btn) btn.disabled = true;
+
+            const username = document.getElementById('regUsername').value.trim();
+            const email = document.getElementById('regEmail').value.trim();
+            const password = document.getElementById('regPassword').value;
+
+            try {
+                const res = await fetch('/api/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, email, password })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    localStorage.setItem('odinlux_token', data.token);
+                    currentUser = data.user;
+                    hideAuthScreen();
+                    socket.emit('authenticate', { token: data.token });
+                    showToast('Welcome, ' + currentUser.username + '!');
+                    if (currentUser.role === 'admin') fetchAdminUsers();
+                } else {
+                    if (alertEl) {
+                        alertEl.textContent = data.message || 'Registration failed';
+                        alertEl.style.display = 'block';
+                    }
+                }
+            } catch (err) {
+                if (alertEl) {
+                    alertEl.textContent = 'Server connection error: ' + err.message;
+                    alertEl.style.display = 'block';
+                }
+            } finally {
+                if (btn) btn.disabled = false;
+            }
+        }
+
+        // --- REAL-TIME SYSTEM & BOT FLEET RESOURCE TRACKING ---
+        let latestSystemStats = null;
+
+        function updateSystemStatsDisplay(stats) {
+            if (!stats) return;
+            latestSystemStats = stats;
+
+            // CPU Stat Card
+            const valCpu = document.getElementById('valSysCpu');
+            const barCpu = document.getElementById('barSysCpu');
+            const badgeCpu = document.getElementById('badgeCpuLevel');
+            const valCores = document.getElementById('valSysCores');
+            const subCpu = document.getElementById('valSysCpuSub');
+
+            if (stats.cpu) {
+                const cpuUsage = typeof stats.cpu.usagePercent === 'number' ? stats.cpu.usagePercent : 0;
+                if (valCpu) valCpu.textContent = cpuUsage.toFixed(1) + '%';
+                if (barCpu) {
+                    const widthPct = Math.min(Math.max(cpuUsage, 2), 100);
+                    barCpu.style.width = widthPct + '%';
+                    if (cpuUsage < 40) {
+                        barCpu.style.background = '#38bdf8';
+                        if (badgeCpu) {
+                            badgeCpu.textContent = 'Optimal';
+                            badgeCpu.style.color = '#38bdf8';
+                            badgeCpu.style.background = 'rgba(56, 189, 248, 0.12)';
+                            badgeCpu.style.borderColor = 'rgba(56, 189, 248, 0.25)';
+                        }
+                    } else if (cpuUsage < 75) {
+                        barCpu.style.background = '#f59e0b';
+                        if (badgeCpu) {
+                            badgeCpu.textContent = 'Moderate';
+                            badgeCpu.style.color = '#f59e0b';
+                            badgeCpu.style.background = 'rgba(245, 158, 11, 0.12)';
+                            badgeCpu.style.borderColor = 'rgba(245, 158, 11, 0.25)';
+                        }
+                    } else {
+                        barCpu.style.background = '#ef4444';
+                        if (badgeCpu) {
+                            badgeCpu.textContent = 'High Load';
+                            badgeCpu.style.color = '#ef4444';
+                            badgeCpu.style.background = 'rgba(239, 68, 68, 0.12)';
+                            badgeCpu.style.borderColor = 'rgba(239, 68, 68, 0.25)';
+                        }
+                    }
+                }
+                if (valCores) valCores.textContent = `${stats.cpu.cores} Core${stats.cpu.cores === 1 ? '' : 's'}`;
+                if (subCpu && stats.cpu.loadAvg) {
+                    subCpu.textContent = `Process CPU • Load Avg: ${stats.cpu.loadAvg[0]}`;
+                }
+            }
+
+            // Memory Stat Card
+            const valMemRss = document.getElementById('valSysMemRss');
+            const valMemHeap = document.getElementById('valSysMemHeap');
+            const barMem = document.getElementById('barSysMem');
+            const badgeMem = document.getElementById('badgeMemLevel');
+            const subMem = document.getElementById('valSysMemSub');
+
+            if (stats.memory) {
+                const rssMb = stats.memory.processRssMb || 0;
+                const heapMb = stats.memory.heapUsedMb || 0;
+                if (valMemRss) valMemRss.textContent = `${rssMb} MB`;
+                if (valMemHeap) valMemHeap.textContent = `Heap: ${heapMb} MB`;
+                if (barMem) {
+                    const memPct = Math.min(Math.max(Math.round((rssMb / 512) * 100), 5), 100);
+                    barMem.style.width = memPct + '%';
+                    if (rssMb < 256) {
+                        barMem.style.background = '#a855f7';
+                        if (badgeMem) {
+                            badgeMem.textContent = 'Healthy';
+                            badgeMem.style.color = '#a855f7';
+                            badgeMem.style.background = 'rgba(168, 85, 247, 0.12)';
+                        }
+                    } else if (rssMb < 400) {
+                        barMem.style.background = '#f59e0b';
+                        if (badgeMem) {
+                            badgeMem.textContent = 'Elevated';
+                            badgeMem.style.color = '#f59e0b';
+                            badgeMem.style.background = 'rgba(245, 158, 11, 0.12)';
+                        }
+                    } else {
+                        barMem.style.background = '#ef4444';
+                        if (badgeMem) {
+                            badgeMem.textContent = 'High RAM';
+                            badgeMem.style.color = '#ef4444';
+                            badgeMem.style.background = 'rgba(239, 68, 68, 0.12)';
+                        }
+                    }
+                }
+                if (subMem) {
+                    if (stats.bots && stats.bots.activeCount > 0) {
+                        subMem.textContent = `~${stats.bots.estimatedMemPerBotMb} MB / active bot • System: ${stats.memory.systemUsedMb}/${stats.memory.systemTotalMb} MB`;
+                    } else {
+                        subMem.textContent = `Base Node.js runtime memory (${stats.memory.externalMb} MB external)`;
+                    }
+                }
+            }
+
+            // Fleet Activity Card
+            const valFleetRatio = document.getElementById('valFleetRatio');
+            const barFleetRatio = document.getElementById('barFleetRatio');
+            const fleetActive = document.getElementById('fleetActiveCount');
+            const badgeSidebar = document.getElementById('sidebarActiveBotsBadge');
+
+            if (stats.bots) {
+                if (valFleetRatio) valFleetRatio.textContent = `${stats.bots.activeCount} / ${stats.bots.totalCount}`;
+                if (fleetActive) fleetActive.textContent = stats.bots.activeCount;
+                if (badgeSidebar) badgeSidebar.textContent = `${stats.bots.activeCount}/${stats.bots.totalCount}`;
+                if (barFleetRatio) {
+                    const ratioPct = stats.bots.totalCount > 0 ? Math.round((stats.bots.activeCount / stats.bots.totalCount) * 100) : 0;
+                    barFleetRatio.style.width = ratioPct + '%';
+                }
+            }
+
+            // Engine Uptime Card
+            const valUptime = document.getElementById('valSysUptime');
+            if (valUptime && stats.system && typeof stats.system.uptimeSeconds === 'number') {
+                const upSec = stats.system.uptimeSeconds;
+                const hours = Math.floor(upSec / 3600);
+                const mins = Math.floor((upSec % 3600) / 60);
+                const secs = upSec % 60;
+                if (hours > 0) {
+                    valUptime.textContent = `${hours}h ${mins}m`;
+                } else if (mins > 0) {
+                    valUptime.textContent = `${mins}m ${secs}s`;
+                } else {
+                    valUptime.textContent = `${secs}s`;
+                }
+            }
+
+            // Update individual server views with instance resource usage
+            serversConfig.forEach(s => {
+                const resEl = document.getElementById('res-server-' + s.id);
+                if (resEl) {
+                    const isOnline = botStatusCache[s.id] && botStatusCache[s.id].text === 'ONLINE';
+                    if (isOnline) {
+                        const estMem = (stats.bots && stats.bots.estimatedMemPerBotMb) ? stats.bots.estimatedMemPerBotMb : 24.5;
+                        const estCpu = (stats.cpu && typeof stats.cpu.usagePercent === 'number') 
+                            ? Math.max(Math.round((stats.cpu.usagePercent / Math.max(stats.bots.activeCount || 1, 1)) * 10) / 10, 0.1) 
+                            : 0.5;
+                        resEl.innerHTML = `<span style="color: #38bdf8;">${estCpu}% CPU</span> • <span style="color: #a855f7;">~${estMem} MB RAM</span>`;
+                    } else {
+                        resEl.innerHTML = `<span style="color: var(--text-muted);">0.0% CPU • Standby</span>`;
+                    }
+                }
+            });
+        }
+
+        async function fetchSystemStats() {
+            try {
+                const res = await fetch('/api/system/stats');
+                const stats = await res.json();
+                updateSystemStatsDisplay(stats);
+            } catch (err) {
+                console.warn('System stats fetch error:', err);
+            }
+        }
+
+        function handleForgotPassword() {
+            showToast('To reset your password, contact your master Admin or open Account Settings.');
+        }
+
+        async function checkExistingAuth() {
+            const token = localStorage.getItem('odinlux_token');
+            if (!token) {
+                showAuthScreen();
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/me', {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                const data = await res.json();
+                if (data.success && data.user) {
+                    currentUser = data.user;
+                    hideAuthScreen();
+                    socket.emit('authenticate', { token });
+                    if (currentUser.role === 'admin') fetchAdminUsers();
+                } else {
+                    localStorage.removeItem('odinlux_token');
+                    showAuthScreen();
+                }
+            } catch {
+                showAuthScreen();
+            }
+        }
+
+        function showAuthScreen() {
+            document.getElementById('authOverlay').style.display = 'flex';
+        }
+
+        function hideAuthScreen() {
+            document.getElementById('authOverlay').style.display = 'none';
+            updateTopNavProfile();
+        }
+
+        function updateTopNavProfile() {
+            if (!currentUser) return;
+            document.getElementById('topNavUsername').textContent = currentUser.username;
+            const roleEl = document.getElementById('topNavUserRole');
+            roleEl.textContent = currentUser.role;
+            if (currentUser.role === 'admin') {
+                roleEl.className = 'role-pill role-admin';
+                document.getElementById('adminNavGroup').style.display = 'flex';
+            } else {
+                roleEl.className = 'role-pill role-user';
+                document.getElementById('adminNavGroup').style.display = 'none';
+            }
+        }
+
+        function handleLogout() {
+            localStorage.removeItem('odinlux_token');
+            currentUser = null;
+            showAuthScreen();
+            showToast('Signed out successfully.');
+        }
+
+        // --- ACCOUNT SETTINGS & PROFILE CUSTOMIZATION ---
+        function openAccountModal() {
+            if (!currentUser) return;
+            document.getElementById('accUsername').value = currentUser.username;
+            document.getElementById('accEmail').value = currentUser.email || '';
+            document.getElementById('accRoleBadge').textContent = 'Role: ' + currentUser.role.toUpperCase();
+            document.getElementById('accountAlert').style.display = 'none';
+            document.getElementById('accCurrentPassword').value = '';
+            document.getElementById('accNewPassword').value = '';
+            document.getElementById('accConfirmPassword').value = '';
+            document.getElementById('accountModal').style.display = 'flex';
+        }
+
+        function closeAccountModal() {
+            document.getElementById('accountModal').style.display = 'none';
+        }
+
+        async function handleUpdateProfile(e) {
+            e.preventDefault();
+            const alertEl = document.getElementById('accountAlert');
+            alertEl.style.display = 'none';
+            const token = localStorage.getItem('odinlux_token');
+            const username = document.getElementById('accUsername').value.trim();
+            const email = document.getElementById('accEmail').value.trim();
+
+            try {
+                const res = await fetch('/api/user/profile', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+                    body: JSON.stringify({ username, email })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    currentUser = data.user;
+                    updateTopNavProfile();
+                    showToast('Profile details updated!');
+                    alertEl.style.background = 'rgba(16, 185, 129, 0.15)';
+                    alertEl.style.borderColor = '#10b981';
+                    alertEl.style.color = '#10b981';
+                    alertEl.textContent = 'Profile successfully updated!';
+                    alertEl.style.display = 'block';
+                } else {
+                    alertEl.style.background = 'rgba(224, 0, 0, 0.2)';
+                    alertEl.style.borderColor = '#e00000';
+                    alertEl.style.color = '#ff8888';
+                    alertEl.textContent = data.message || 'Update failed';
+                    alertEl.style.display = 'block';
+                }
+            } catch (err) {
+                alertEl.textContent = 'Error: ' + err.message;
+                alertEl.style.display = 'block';
+            }
+        }
+
+        async function handleChangePassword(e) {
+            e.preventDefault();
+            const alertEl = document.getElementById('accountAlert');
+            alertEl.style.display = 'none';
+
+            const currentPassword = document.getElementById('accCurrentPassword').value;
+            const newPassword = document.getElementById('accNewPassword').value;
+            const confirmPassword = document.getElementById('accConfirmPassword').value;
+
+            if (newPassword !== confirmPassword) {
+                alertEl.style.background = 'rgba(224, 0, 0, 0.2)';
+                alertEl.style.borderColor = '#e00000';
+                alertEl.style.color = '#ff8888';
+                alertEl.textContent = 'New passwords do not match!';
+                alertEl.style.display = 'block';
+                return;
+            }
+
+            const token = localStorage.getItem('odinlux_token');
+            try {
+                const res = await fetch('/api/user/password', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+                    body: JSON.stringify({ currentPassword, newPassword })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast('Password updated successfully!');
+                    document.getElementById('accCurrentPassword').value = '';
+                    document.getElementById('accNewPassword').value = '';
+                    document.getElementById('accConfirmPassword').value = '';
+                    alertEl.style.background = 'rgba(16, 185, 129, 0.15)';
+                    alertEl.style.borderColor = '#10b981';
+                    alertEl.style.color = '#10b981';
+                    alertEl.textContent = 'Password changed successfully!';
+                    alertEl.style.display = 'block';
+                } else {
+                    alertEl.style.background = 'rgba(224, 0, 0, 0.2)';
+                    alertEl.style.borderColor = '#e00000';
+                    alertEl.style.color = '#ff8888';
+                    alertEl.textContent = data.message || 'Password update failed';
+                    alertEl.style.display = 'block';
+                }
+            } catch (err) {
+                alertEl.textContent = 'Error: ' + err.message;
+                alertEl.style.display = 'block';
+            }
+        }
+
+        // --- ADMIN RESET PASSWORD FOR MEMBERS ---
+        function openAdminResetPassword(userId, username) {
+            document.getElementById('adminResetUserId').value = userId;
+            document.getElementById('adminResetTitle').textContent = `Reset Password for "${username}"`;
+            document.getElementById('adminResetNewPassword').value = '';
+            document.getElementById('adminResetModal').style.display = 'flex';
+        }
+
+        function closeAdminResetModal() {
+            document.getElementById('adminResetModal').style.display = 'none';
+        }
+
+        async function submitAdminResetPassword() {
+            const userId = document.getElementById('adminResetUserId').value;
+            const newPassword = document.getElementById('adminResetNewPassword').value;
+            if (!newPassword || newPassword.length < 4) {
+                showToast('Password must be at least 4 characters');
+                return;
+            }
+
+            const token = localStorage.getItem('odinlux_token');
+            try {
+                const res = await fetch('/api/admin/users/reset-password', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+                    body: JSON.stringify({ userId, newPassword })
+                });
+                const data = await res.json();
+                showToast(data.message || 'Password reset');
+                closeAdminResetModal();
+            } catch (err) {
+                showToast('Failed to reset: ' + err.message);
+            }
+        }
+
+        // --- IN-APP CONFIRMATION MODAL (NO BLOCKING WINDOW.CONFIRM) ---
+        let currentConfirmCallback = null;
+
+        function showGenericConfirm(title, message, onConfirm) {
+            currentConfirmCallback = onConfirm;
+            const modal = document.getElementById('genericConfirmModal');
+            const titleEl = document.getElementById('genericConfirmTitle');
+            const msgEl = document.getElementById('genericConfirmMessage');
+            const btn = document.getElementById('genericConfirmBtn');
+            if (titleEl) titleEl.textContent = title;
+            if (msgEl) msgEl.textContent = message;
+            if (btn) {
+                btn.onclick = async () => {
+                    const cb = currentConfirmCallback;
+                    const origHtml = btn.innerHTML;
+                    btn.disabled = true;
+                    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Confirming...';
+                    try {
+                        closeGenericConfirm();
+                        if (typeof cb === 'function') {
+                            await cb();
+                        }
+                    } catch (err) {
+                        console.error('Confirm action error:', err);
+                        showToast('Error during action: ' + err.message);
+                    } finally {
+                        btn.disabled = false;
+                        btn.innerHTML = origHtml;
+                    }
+                };
+            }
+            if (modal) modal.style.display = 'flex';
+        }
+
+        function closeGenericConfirm() {
+            currentConfirmCallback = null;
+            const modal = document.getElementById('genericConfirmModal');
+            if (modal) modal.style.display = 'none';
+        }
+
+        // --- ADMIN PANEL API CALLS ---
+        async function fetchAdminUsers(showFeedback = false) {
+            const token = localStorage.getItem('odinlux_token');
+            if (!token) return;
+            const icon = document.getElementById('iconAdminRefresh');
+            if (icon) icon.classList.add('spin-animation');
+            try {
+                const res = await fetch('/api/admin/users', {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                const data = await res.json();
+                if (data.success && data.users) {
+                    allRegisteredUsers = data.users;
+                    renderAdminTable();
+                    if (showFeedback) showToast('Admin user roster & permissions refreshed');
+                } else if (showFeedback && data.message) {
+                    showToast(data.message);
+                }
+            } catch (err) {
+                console.error('Failed to load admin users:', err);
+                if (showFeedback) showToast('Failed to refresh: ' + err.message);
+            } finally {
+                if (icon) setTimeout(() => icon.classList.remove('spin-animation'), 600);
+            }
+        }
+
+        function renderAdminTable() {
+            const tbody = document.getElementById('adminUsersTbody');
+            if (!tbody) return;
+            if (allRegisteredUsers.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 24px;">No users found.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = allRegisteredUsers.map(u => `
+                <tr>
+                    <td style="font-weight: 600; color: #fff;">${escapeHtml(u.username)}</td>
+                    <td style="color: var(--text-muted);">${escapeHtml(u.email)}</td>
+                    <td>
+                        <select onchange="changeUserRole('${u.id}', this.value)" style="background: #111; color: #fff; border: 1px solid var(--border); border-radius: 4px; padding: 3px 8px; font-size: 12px;">
+                            <option value="user" ${u.role === 'user' ? 'selected' : ''}>User</option>
+                            <option value="admin" ${u.role === 'admin' ? 'selected' : ''}>Admin</option>
+                        </select>
+                    </td>
+                    <td><span style="font-family: 'JetBrains Mono', monospace;">${u.serversCount || 0}</span></td>
+                    <td style="color: var(--text-muted); font-size: 11.5px;">${new Date(u.createdAt).toLocaleDateString()}</td>
+                    <td>
+                        <div style="display: flex; gap: 6px; align-items: center;">
+                            <button class="btn btn-secondary btn-sm" onclick="openAdminResetPassword('${u.id}', '${escapeHtml(u.username)}')">
+                                <i data-lucide="key" size="11"></i> Password
+                            </button>
+                            ${u.id !== currentUser.id ? `
+                                <button class="btn btn-danger btn-sm" onclick="deleteUserAccount('${u.id}', '${escapeHtml(u.username)}')">
+                                <i data-lucide="trash-2" size="11"></i> Delete
+                            </button>
+                            ` : '<span style="color: var(--text-muted); font-size: 11px;">Current</span>'}
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+
+            // Render Server Permissions matrix
+            const sbody = document.getElementById('adminServersTbody');
+            if (sbody) {
+                sbody.innerHTML = serversConfig.map(s => {
+                    const allowed = Array.isArray(s.allowedUsers) ? s.allowedUsers : [];
+                    return `
+                        <tr>
+                            <td style="font-weight: 600; color: #fff;">${escapeHtml(s.name)}</td>
+                            <td style="font-family: 'JetBrains Mono', monospace; font-size: 12px;">${escapeHtml(s.host)}:${s.port}</td>
+                            <td><span class="role-pill role-admin" style="font-size: 10px;">${escapeHtml(s.ownerUsername || 'Odin Lux')}</span></td>
+                            <td>
+                                ${allowed.length === 0 ? '<span style="color: var(--text-muted); font-size: 11px;">Owner Only</span>' : allowed.map(u => `<span class="player-tag" style="font-size: 11px; padding: 2px 6px;">${escapeHtml(u)}</span>`).join(' ')}
+                            </td>
+                            <td>
+                                <button class="btn btn-secondary btn-sm" onclick="openPermModal('${s.id}')">
+                                    <i data-lucide="key" size="11"></i> Edit Permissions
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            }
+
+            lucide.createIcons();
+        }
+
+        async function changeUserRole(userId, newRole) {
+            const token = localStorage.getItem('odinlux_token');
+            try {
+                const res = await fetch('/api/admin/users/role', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+                    body: JSON.stringify({ userId, role: newRole })
+                });
+                const data = await res.json();
+                showToast(data.message || 'Updated role');
+                fetchAdminUsers(false);
+            } catch (err) {
+                showToast('Failed to change role: ' + err.message);
+            }
+        }
+
+        function deleteUserAccount(userId, username) {
+            showGenericConfirm(
+                'Delete User Account',
+                `Are you sure you want to permanently delete user "${username}"? This will immediately revoke their access and active sessions.`,
+                async () => {
+                    const token = localStorage.getItem('odinlux_token');
+                    try {
+                        const res = await fetch('/api/admin/users/' + userId, {
+                            method: 'DELETE',
+                            headers: { 'Authorization': 'Bearer ' + token }
+                        });
+                        const data = await res.json();
+                        if (data.success) {
+                            showToast(data.message || 'User deleted successfully');
+                            fetchAdminUsers(false);
+                        } else {
+                            showToast(data.message || 'Failed to delete user');
+                        }
+                    } catch (err) {
+                        showToast('Failed to delete: ' + err.message);
+                    }
+                }
+            );
+        }
+
+        function openPermModal(serverId) {
+            const s = serversConfig.find(item => item.id === serverId);
+            if (!s) return;
+            document.getElementById('permServerId').value = s.id;
+            document.getElementById('permModalTitle').textContent = 'Permissions: ' + s.name;
+
+            const container = document.getElementById('permUsersChecklist');
+            const allowed = Array.isArray(s.allowedUsers) ? s.allowedUsers : [];
+            const nonOwnerUsers = allRegisteredUsers.filter(u => u.username !== s.ownerUsername);
+
+            if (nonOwnerUsers.length === 0) {
+                container.innerHTML = '<div style="color: var(--text-muted); font-size: 12px;">No other registered users exist yet. Invite members to register to share server access!</div>';
+            } else {
+                container.innerHTML = nonOwnerUsers.map(u => `
+                    <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: #fff; cursor: pointer;">
+                        <input type="checkbox" class="perm-user-chk" value="${escapeHtml(u.username)}" ${allowed.includes(u.username) ? 'checked' : ''} style="accent-color: #10b981;">
+                        <span>${escapeHtml(u.username)} (${escapeHtml(u.email)})</span>
+                    </label>
+                `).join('');
+            }
+
+            document.getElementById('permissionsModal').style.display = 'flex';
+        }
+
+        function closePermModal() {
+            document.getElementById('permissionsModal').style.display = 'none';
+        }
+
+        async function saveServerPermissions() {
+            const serverId = document.getElementById('permServerId').value;
+            const checked = Array.from(document.querySelectorAll('.perm-user-chk:checked')).map(el => el.value);
+            const token = localStorage.getItem('odinlux_token');
+
+            try {
+                const res = await fetch('/api/admin/permissions', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+                    body: JSON.stringify({ serverId, allowedUsers: checked })
+                });
+                const data = await res.json();
+                showToast(data.message || 'Permissions updated');
+                closePermModal();
+                fetchAdminUsers();
+            } catch (err) {
+                showToast('Failed to save permissions: ' + err.message);
+            }
+        }
+
+        // --- DASHBOARD UI FUNCTIONS ---
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toastBox');
+            if (!toast) return;
+            toast.textContent = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2500);
+        }
+
+        function switchView(targetViewId, displayName) {
+            activeViewId = targetViewId;
+            activeDisplayName = displayName;
+
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.page-view').forEach(view => view.classList.add('hidden'));
+
+            const targetTab = document.getElementById('tab-' + targetViewId);
+            if (targetTab) targetTab.classList.add('active');
+
+            const targetView = document.getElementById('view-' + targetViewId);
+            if (targetView) targetView.classList.remove('hidden');
+
+            const sidebarTitle = document.getElementById('sidebarServerTitle');
+            if (sidebarTitle && displayName) {
+                sidebarTitle.textContent = displayName.replace(' Status', '');
+            }
+        }
+
+        // --- REAL-TIME UPTIME FORMATTER & TICKER ---
+        function formatUptime(ms) {
+            if (!ms || ms <= 0) return '0s';
+            const totalSecs = Math.floor(ms / 1000);
+            const days = Math.floor(totalSecs / 86400);
+            const hours = Math.floor((totalSecs % 86400) / 3600);
+            const minutes = Math.floor((totalSecs % 3600) / 60);
+            const seconds = totalSecs % 60;
+            
+            const parts = [];
+            if (days > 0) parts.push(`${days}d`);
+            if (hours > 0) parts.push(`${hours}h`);
+            if (minutes > 0) parts.push(`${minutes}m`);
+            parts.push(`${seconds}s`);
+            return parts.join(' ');
+        }
+
+        function updateAllUptimes() {
+            serversConfig.forEach(s => {
+                updateUptimeDisplay(s.id);
+            });
+        }
+
+        function updateUptimeDisplay(serverId) {
+            const fleetEl = document.getElementById('uptime-fleet-' + serverId);
+            const serverEl = document.getElementById('uptime-server-' + serverId);
+            const st = botStatusCache[serverId];
+            const isOnline = st && st.text === 'ONLINE';
+
+            let text = '--';
+            let color = 'var(--text-muted)';
+
+            if (isOnline && botUptimeCache[serverId]) {
+                const elapsedMs = Date.now() - botUptimeCache[serverId];
+                text = formatUptime(elapsedMs);
+                color = '#10b981';
+            } else if (isOnline) {
+                text = 'Connected';
+                color = '#10b981';
+            } else if (st && st.text === 'RECONNECTING') {
+                text = 'Reconnecting...';
+                color = '#f5a623';
+            } else if (st && st.text === 'OFFLINE') {
+                text = 'Offline';
+                color = '#888888';
+            } else if (st && st.text === 'CONFLICT') {
+                text = 'Conflict Locked';
+                color = '#f5a623';
+            }
+
+            if (fleetEl) {
+                fleetEl.textContent = text;
+                fleetEl.style.color = color;
+            }
+            if (serverEl) {
+                serverEl.textContent = text;
+                serverEl.style.color = color;
+            }
+        }
+
+        // Live tick every second
+        setInterval(updateAllUptimes, 1000);
+
+        function renderFleetCards() {
+            const container = document.getElementById('fleetCardsContainer');
+            if (!container) return;
+
+            let activeCount = 0;
+            let html = '';
+
+            if (serversConfig.length === 0) {
+                container.innerHTML = `
+                    <div style="grid-column: 1 / -1; padding: 40px; text-align: center; background: #0a0a0a; border: 1px solid var(--border); border-radius: 12px;">
+                        <i data-lucide="server" size="32" style="color: var(--text-muted); margin-bottom: 12px;"></i>
+                        <h3 style="color: #fff; font-size: 16px; margin-bottom: 6px;">No Servers Assigned</h3>
+                        <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 16px;">You don't have any Minecraft servers yet. Click below to add your server or request access from the Admin.</p>
+                        <button class="btn btn-success btn-sm" onclick="openAddServerModal()"><i data-lucide="plus" size="12"></i> Add Minecraft Server</button>
+                    </div>
+                `;
+                lucide.createIcons();
+                return;
+            }
+
+            serversConfig.forEach(s => {
+                const st = botStatusCache[s.id] || { text: 'OFFLINE', color: '#e00000' };
+                const isOnline = st.text === 'ONLINE';
+                if (isOnline) activeCount++;
+
+                const pos = botPositionCache[s.id] || 'Standby';
+                const isOwner = currentUser && s.ownerUsername === currentUser.username;
+                const uptimeVal = isOnline && botUptimeCache[s.id] ? formatUptime(Date.now() - botUptimeCache[s.id]) : (isOnline ? 'Connected' : (st.text === 'RECONNECTING' ? 'Reconnecting...' : '--'));
+                const uptimeColor = isOnline ? '#10b981' : (st.text === 'RECONNECTING' ? '#f5a623' : 'var(--text-muted)');
+
+                html += `
+                    <div class="bot-fleet-card">
+                        <div class="bot-fleet-header">
+                            <div class="bot-avatar-box">
+                                <div class="bot-avatar-icon"><i data-lucide="bot" size="20"></i></div>
+                                <div>
+                                    <div class="bot-meta-title">${escapeHtml(s.name)}</div>
+                                    <div class="bot-meta-server">${escapeHtml(s.username)} • ${escapeHtml(s.host)}:${s.port}</div>
+                                </div>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <span class="status-badge" style="background: ${st.color}15; color: ${st.color}; border-color: ${st.color}33;">
+                                    ${escapeHtml(st.text)}
+                                </span>
+                                <button class="btn btn-secondary btn-sm" style="padding: 2px 7px; height: 22px; font-size: 11px;" onclick="refreshSingleServer('${s.id}')" title="Refresh bot status & ping server">
+                                    <i data-lucide="rotate-cw" size="11"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="bot-info-table">
+                            <div class="bot-info-row">
+                                <span style="color: var(--text-muted); display: flex; align-items: center; gap: 5px;">
+                                    <i data-lucide="clock" size="12" style="color: #10b981;"></i> Continuous Uptime
+                                </span>
+                                <span id="uptime-fleet-${s.id}" class="uptime-live-text" style="color: ${uptimeColor};">
+                                    ${uptimeVal}
+                                </span>
+                            </div>
+                            <div class="bot-info-row">
+                                <span style="color: var(--text-muted)">Ownership</span>
+                                <span style="font-size: 11px; color: #10b981;">${isOwner ? 'Your Server' : escapeHtml(s.ownerUsername || 'Shared')}</span>
+                            </div>
+                            <div class="bot-info-row">
+                                <span style="color: var(--text-muted)">Position</span>
+                                <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px;">${escapeHtml(pos)}</span>
+                            </div>
+                            <div class="bot-info-row">
+                                <span style="color: var(--text-muted)">Version</span>
+                                <span>${escapeHtml(s.version || 'auto')}</span>
+                            </div>
+                        </div>
+
+                        <div class="bot-actions-row">
+                            <button class="btn btn-success btn-sm" onclick="startBot('${s.id}')"><i data-lucide="play" size="11"></i> Start</button>
+                            <button class="btn btn-danger btn-sm" onclick="stopBot('${s.id}')"><i data-lucide="square" size="11"></i> Stop</button>
+                            <button class="btn btn-secondary btn-sm" onclick="switchView('server-${s.id}', '${escapeHtml(s.name)}')"><i data-lucide="terminal" size="11"></i> Console</button>
+                            <button class="btn btn-secondary btn-sm" onclick="openEditModal('${s.id}')"><i data-lucide="settings" size="11"></i> Edit</button>
+                            <button class="btn btn-danger btn-sm" onclick="confirmDeleteServer('${s.id}', '${escapeHtml(s.name)}')" title="Delete server instance"><i data-lucide="trash-2" size="11"></i> Delete</button>
+                        </div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+            const badge = document.getElementById('sidebarActiveBotsBadge');
+            if (badge) badge.textContent = `${activeCount}/${serversConfig.length}`;
+            const fleetActive = document.getElementById('fleetActiveCount');
+            if (fleetActive) fleetActive.textContent = activeCount;
+            lucide.createIcons();
+        }
+
+        function renderServersUI() {
+            const tabsNavServers = document.getElementById('tabsNavServers');
+            const tabsNavSmp = document.getElementById('tabsNavSmp');
+            const viewsContainer = document.getElementById('viewsContainer');
+            if (!tabsNavServers || !tabsNavSmp || !viewsContainer) return;
+
+            let serversTabsHtml = '';
+            let smpTabsHtml = '';
+            let serverViewsHtml = '';
+
+            serversConfig.forEach((s) => {
+                const isServerActive = activeViewId === ('server-' + s.id);
+                const isSmpActive = activeViewId === ('smp-' + s.id);
+                const isOnline = botStatusCache[s.id] && botStatusCache[s.id].text === 'ONLINE';
+                const initialUptime = isOnline && botUptimeCache[s.id] ? formatUptime(Date.now() - botUptimeCache[s.id]) : (isOnline ? 'Connected' : '--');
+
+                serversTabsHtml += `
+                    <button class="tab-btn ${isServerActive ? 'active' : ''}" id="tab-server-${s.id}" onclick="switchView('server-${s.id}', '${escapeHtml(s.name)}')">
+                        <span class="tab-status" id="indicator-${s.id}"></span>
+                        <span>${escapeHtml(s.name)}</span>
+                    </button>
+                `;
+
+                smpTabsHtml += `
+                    <button class="tab-btn ${isSmpActive ? 'active' : ''}" id="tab-smp-${s.id}" onclick="switchView('smp-${s.id}', '${escapeHtml(s.name)} Status')">
+                        <i data-lucide="activity" size="14" style="color: var(--text-muted);"></i>
+                        <span>${escapeHtml(s.name)} Info</span>
+                    </button>
+                `;
+
+                serverViewsHtml += `
+                    <div class="page-view ${isServerActive ? '' : 'hidden'}" id="view-server-${s.id}">
+                        <div class="server-header-bar">
+                            <div class="server-title">
+                                <i data-lucide="cpu" size="15" style="color: var(--text-muted);"></i>
+                                <span id="title-server-${s.id}">${escapeHtml(s.name)}</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span id="status-${s.id}" class="status-badge" style="background: rgba(245, 166, 35, 0.1); color: #f5a623;">Standby</span>
+                            </div>
+                        </div>
+
+                        <div class="content-area">
+                            <div class="stats-grid">
+                                <div class="stat-card">
+                                    <span class="label"><i data-lucide="clock" size="13" style="color: #10b981;"></i> Continuous Uptime</span>
+                                    <span class="value" id="uptime-server-${s.id}" style="color: #10b981; font-weight: 600;">${initialUptime}</span>
+                                </div>
+                                <div class="stat-card">
+                                    <span class="label"><i data-lucide="globe" size="13"></i> Host & Port</span>
+                                    <span class="value">${escapeHtml(s.host)}:${s.port}</span>
+                                </div>
+                                <div class="stat-card">
+                                    <span class="label"><i data-lucide="user" size="13"></i> Bot Account</span>
+                                    <span class="value">${escapeHtml(s.username)}</span>
+                                </div>
+                                <div class="stat-card">
+                                    <span class="label"><i data-lucide="compass" size="13"></i> Coordinates</span>
+                                    <span class="value" id="pos-${s.id}">Waiting...</span>
+                                </div>
+                                <div class="stat-card">
+                                    <span class="label"><i data-lucide="cpu" size="13" style="color: #38bdf8;"></i> Bot Instance CPU & RAM</span>
+                                    <span class="value" id="res-server-${s.id}" style="color: #38bdf8;">0.0% CPU • Standby</span>
+                                </div>
+                            </div>
+
+                            <div class="players-box">
+                                <h4><i data-lucide="users" size="13" style="color: var(--text-muted);"></i> Connected Players (<span id="pcount-${s.id}">0</span>)</h4>
+                                <div class="players-list" id="plist-${s.id}">
+                                    <span style="color: var(--text-muted)">Fetching live roster...</span>
+                                </div>
+                            </div>
+
+                            <div class="console-wrapper">
+                                <div class="console-header">
+                                    <span style="display: flex; align-items: center; gap: 6px;"><i data-lucide="terminal" size="13" style="color: var(--text-muted);"></i> Console Logs</span>
+                                    <div class="console-actions">
+                                        <button class="btn btn-secondary btn-sm" onclick="copyConsoleLogs('${s.id}')" title="Copy console logs"><i data-lucide="copy" size="11"></i> Copy</button>
+                                        <button class="btn btn-secondary btn-sm" onclick="downloadConsoleLogs('${s.id}')" title="Download console logs as .txt file"><i data-lucide="download" size="11"></i> Download Logs</button>
+                                        <button class="btn btn-secondary btn-sm" onclick="clearConsoleLogs('${s.id}')" title="Clear console output"><i data-lucide="trash-2" size="11"></i> Clear</button>
+                                    </div>
+                                </div>
+                                <div id="console-${s.id}" class="console-terminal"></div>
+                            </div>
+
+                            <div class="action-bar">
+                                <button class="btn btn-success" onclick="startBot('${s.id}')"><i data-lucide="play" size="13"></i> Start</button>
+                                <button class="btn btn-danger" onclick="stopBot('${s.id}')"><i data-lucide="square" size="13"></i> Stop</button>
+                                <button class="btn btn-secondary" onclick="openEditModal('${s.id}')"><i data-lucide="settings" size="13"></i> Configure</button>
+                                <button class="btn btn-secondary" onclick="fetchPlayers('${s.id}')"><i data-lucide="rotate-cw" size="13"></i> Refresh Players</button>
+                                ${s.password ? '<button class="btn btn-secondary" onclick="sendAuthMe(\'' + s.id + '\')"><i data-lucide="key" size="13"></i> AuthMe Login</button>' : ''}
+                                <button class="btn btn-secondary" onclick="sendCmd('${s.id}', '/gamemode spectator')"><i data-lucide="eye" size="13"></i> Spectator</button>
+                                <button class="btn btn-secondary" onclick="sendCmd('${s.id}', '/gamemode survival')"><i data-lucide="shield" size="13"></i> Survival</button>
+                                <button class="btn btn-danger" onclick="confirmDeleteServer('${s.id}', '${escapeHtml(s.name)}')" style="margin-left: auto;"><i data-lucide="trash-2" size="13"></i> Delete</button>
+                            </div>
+
+                            <div class="chat-form-wrapper">
+                                <form class="chat-form" onsubmit="handleChatSubmit(event, '${s.id}')">
+                                    <input type="text" class="chat-input" id="chatInput-${s.id}" placeholder="Type command or chat message... (e.g. /gamemode spectator or !ai how to find netherite)" required autocomplete="off">
+                                    <button type="submit" class="btn btn-success"><i data-lucide="send" size="13"></i> Send</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="page-view ${isSmpActive ? '' : 'hidden'}" id="view-smp-${s.id}">
+                        <div class="server-header-bar">
+                            <div class="server-title">
+                                <i data-lucide="activity" size="15" style="color: #10b981;"></i>
+                                <span>${escapeHtml(s.name)} — Diagnostics</span>
+                            </div>
+                            <button class="btn btn-secondary btn-sm" onclick="handleRefreshSmp('${s.id}')" title="Refresh server ping and diagnostics">
+                                <i data-lucide="rotate-cw" size="12"></i> Refresh Diagnostics
+                            </button>
+                        </div>
+                        <div class="content-area">
+                            <div class="smp-card-container">
+                                <div class="smp-embed">
+                                    <div class="smp-header">
+                                        <i data-lucide="hard-drive" size="20" style="color: #fff;"></i>
+                                        <h3>${escapeHtml(s.name)}</h3>
+                                    </div>
+                                    <div class="smp-divider"></div>
+                                    <div class="smp-field">
+                                        <div class="smp-field-label">Status</div>
+                                        <div class="smp-field-value" id="smp-status-${s.id}">Checking...</div>
+                                    </div>
+                                    <div class="smp-field">
+                                        <div class="smp-field-label">Players Online</div>
+                                        <div class="smp-field-value" id="smp-players-${s.id}">-- / --</div>
+                                    </div>
+                                    <div class="smp-field">
+                                        <div class="smp-field-label">Latency</div>
+                                        <div class="smp-field-value" id="smp-latency-${s.id}">-- ms</div>
+                                    </div>
+                                    <div class="smp-field">
+                                        <div class="smp-field-label">Connection IP</div>
+                                        <div class="smp-connect-box" onclick="navigator.clipboard.writeText('${escapeHtml(s.connectIp)}').then(() => showToast('Copied IP'));">
+                                            <span>${escapeHtml(s.connectIp)}</span>
+                                            <i data-lucide="copy" size="13"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            tabsNavServers.innerHTML = serversTabsHtml;
+            tabsNavSmp.innerHTML = smpTabsHtml;
+            viewsContainer.innerHTML = serverViewsHtml;
+
+            // Restore buffered console logs for active server terminals
+            serversConfig.forEach((s) => {
+                const term = document.getElementById('console-' + s.id);
+                if (term && consoleLogsCache[s.id] && consoleLogsCache[s.id].length > 0) {
+                    const frag = document.createDocumentFragment();
+                    consoleLogsCache[s.id].forEach(msg => {
+                        const line = document.createElement('div');
+                        line.className = 'log-line';
+                        if (msg.includes('[SENT]')) line.classList.add('log-sent');
+                        else if (msg.includes('[ERROR]') || msg.includes('[KICKED]') || msg.includes('[DENIED]') || msg.includes('[CONFLICT')) line.classList.add('log-kicked');
+                        else if (msg.includes('[AUTH]') || msg.includes('AuthMe')) line.classList.add('log-auth');
+                        line.textContent = msg;
+                        frag.appendChild(line);
+                    });
+                    term.appendChild(frag);
+                    term.scrollTop = term.scrollHeight;
+                }
+            });
+
+            renderFleetCards();
+            if (currentUser && currentUser.role === 'admin') renderAdminTable();
+            lucide.createIcons();
+            switchView(activeViewId, activeDisplayName);
+        }
+
+        function copyConsoleLogs(serverId) {
+            const targetConsole = document.getElementById('console-' + serverId);
+            let text = '';
+            if (targetConsole && targetConsole.innerText && targetConsole.innerText.trim()) {
+                text = targetConsole.innerText.trim();
+            } else if (consoleLogsCache[serverId] && consoleLogsCache[serverId].length > 0) {
+                text = consoleLogsCache[serverId].join('\n');
+            }
+            if (!text) {
+                showToast('Console is empty — no logs to copy');
+                return;
+            }
+            navigator.clipboard.writeText(text).then(() => showToast('Console logs copied!'));
+        }
+
+        function downloadConsoleLogs(serverId) {
+            const targetConsole = document.getElementById('console-' + serverId);
+            let logText = '';
+            if (targetConsole && targetConsole.innerText && targetConsole.innerText.trim()) {
+                logText = targetConsole.innerText.trim();
+            } else if (consoleLogsCache[serverId] && consoleLogsCache[serverId].length > 0) {
+                logText = consoleLogsCache[serverId].join('\n');
+            }
+
+            if (!logText) {
+                showToast('Console is empty — no logs to download');
+                return;
+            }
+
+            const s = serversConfig.find(item => item.id === serverId);
+            const serverName = s && s.name ? s.name : 'minecraft_bot';
+            const safeServerName = serverName.replace(/[^a-zA-Z0-9_-]/g, '_').toLowerCase();
+            const d = new Date();
+            const pad = (n) => String(n).padStart(2, '0');
+            const timestamp = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
+            const filename = `${safeServerName}_console_logs_${timestamp}.txt`;
+
+            const blob = new Blob([logText], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            setTimeout(() => {
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+            }, 200);
+            showToast(`Exported ${filename}`);
+        }
+
+        function clearConsoleLogs(serverId) {
+            const targetConsole = document.getElementById('console-' + serverId);
+            if (targetConsole) targetConsole.innerHTML = '';
+            consoleLogsCache[serverId] = [];
+            showToast('Console logs cleared');
+        }
+
+        function handleChatSubmit(e, serverId) {
+            e.preventDefault();
+            const input = document.getElementById('chatInput-' + serverId);
+            if (input && input.value) {
+                socket.emit('send_chat', { serverId: serverId, msg: input.value });
+                input.value = '';
+            }
+        }
+
+        function sendCmd(serverId, cmd) { socket.emit('send_chat', { serverId: serverId, msg: cmd }); }
+        
+        function fetchPlayers(serverId) { 
+            socket.emit('get_players', { serverId: serverId });
+            const s = serversConfig.find(item => item.id === serverId);
+            showToast(`Checking player roster for ${s ? s.name : 'server'}...`);
+        }
+
+        async function handleRefreshFleet() {
+            const icon = document.getElementById('iconRefreshFleet');
+            if (icon) icon.classList.add('spin-animation');
+            const token = localStorage.getItem('odinlux_token');
+            socket.emit('refresh_fleet');
+            try {
+                const res = await fetch('/api/servers', {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                const data = await res.json();
+                if (data.success && data.servers) {
+                    serversConfig = data.servers;
+                    if (data.statuses) Object.assign(botStatusCache, data.statuses);
+                    if (data.uptimes) Object.assign(botUptimeCache, data.uptimes);
+                    renderServersUI();
+        fetchSystemStats();
+        setInterval(fetchSystemStats, 5000);
+                    showToast('Fleet & server statuses refreshed');
+                }
+            } catch (err) {
+                console.error('Fleet refresh error:', err);
+                showToast('Refreshed fleet live state');
+            } finally {
+                if (icon) setTimeout(() => icon.classList.remove('spin-animation'), 600);
+            }
+        }
+
+        async function refreshSingleServer(serverId) {
+            const token = localStorage.getItem('odinlux_token');
+            const s = serversConfig.find(item => item.id === serverId);
+            const name = s ? s.name : 'Server';
+            socket.emit('refresh_server', { serverId });
+            showToast(`Refreshing ${name}...`);
+            try {
+                const res = await fetch(`/api/servers/${serverId}/refresh`, {
+                    method: 'POST',
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                const data = await res.json();
+                if (data.success) {
+                    if (data.status) botStatusCache[serverId] = data.status;
+                    if (data.uptimeStart) botUptimeCache[serverId] = data.uptimeStart;
+                    renderFleetCards();
+                    updateUptimeDisplay(serverId);
+                    showToast(`${name} refreshed: ${data.isOnline ? 'ONLINE' : 'STANDBY'}`);
+                }
+            } catch (err) {
+                console.warn('Single server refresh err:', err);
+            }
+        }
+
+        async function handleRefreshSmp(serverId) {
+            await refreshSingleServer(serverId);
+        }
+
+        function confirmDeleteServer(serverId, serverName) {
+            showGenericConfirm(
+                'Delete Minecraft Server',
+                `Are you sure you want to permanently delete server "${serverName}"? This will immediately disconnect its bot and remove it from your dashboard.`,
+                async () => {
+                    await executeDeleteServer(serverId, serverName);
+                }
+            );
+        }
+
+        async function executeDeleteServer(serverId, serverName) {
+            const token = localStorage.getItem('odinlux_token');
+            try {
+                const res = await fetch('/api/servers/' + serverId, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast(data.message || `Server "${serverName}" deleted`);
+                }
+            } catch (err) {
+                console.warn('REST delete failed, falling back to socket:', err);
+            }
+
+            socket.emit('delete_server', { serverId });
+
+            // Optimistic instant UI update
+            serversConfig = serversConfig.filter(s => s.id !== serverId);
+            delete botStatusCache[serverId];
+            delete botPositionCache[serverId];
+            delete botUptimeCache[serverId];
+            renderServersUI();
+
+            if (activeViewId === 'server-' + serverId || activeViewId === 'smp-' + serverId) {
+                switchView('bots-dashboard', 'Bots Fleet Dashboard');
+            }
+        }
+
+        function sendAuthMe(serverId) { socket.emit('trigger_authme', { serverId: serverId }); }
+        function startBot(serverId) { socket.emit('start_bot', { serverId: serverId }); }
+        function stopBot(serverId) { socket.emit('stop_bot', { serverId: serverId }); }
+
+        function handleAiSubmit(e) {
+            if (e) e.preventDefault();
+            const input = document.getElementById('aiInput');
+            const text = input ? input.value.trim() : '';
+            if (!text) return;
+
+            appendAiMsg(text, 'user');
+            input.value = '';
+            socket.emit('ask_gemini_ai', { prompt: text });
+        }
+
+        function appendAiMsg(msg, type) {
+            const container = document.getElementById('aiMessagesContainer');
+            if (!container) return;
+            const div = document.createElement('div');
+            div.className = 'ai-msg ' + type;
+            div.textContent = msg;
+            container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function askQuickPrompt(text) {
+            const input = document.getElementById('aiInput');
+            if (input) {
+                input.value = text;
+                handleAiSubmit();
+            }
+        }
+
+        function clearAiChat() {
+            const container = document.getElementById('aiMessagesContainer');
+            if (container) {
+                container.innerHTML = '<div class="ai-msg bot">Conversation reset. Ask any Minecraft question!</div>';
+            }
+        }
+
+        function openAddServerModal() {
+            document.getElementById('modalMode').value = 'add';
+            document.getElementById('modalTitle').textContent = 'Add Minecraft Server';
+            document.getElementById('editServerId').value = '';
+            document.getElementById('editServerName').value = 'Server ' + (serversConfig.length + 1);
+            document.getElementById('editServerHost').value = '';
+            document.getElementById('editServerPort').value = '25565';
+            document.getElementById('editServerUsername').value = 'AFK_Steve';
+            document.getElementById('editServerVersion').value = 'auto';
+            document.getElementById('btnDeleteServer').style.display = 'none';
+            document.getElementById('editModal').style.display = 'flex';
+        }
+
+        function openEditModal(serverId) {
+            const s = serversConfig.find(item => item.id === serverId);
+            if (!s) return;
+            document.getElementById('modalMode').value = 'edit';
+            document.getElementById('modalTitle').textContent = 'Configure ' + s.name;
+            document.getElementById('editServerId').value = s.id;
+            document.getElementById('editServerName').value = s.name;
+            document.getElementById('editServerHost').value = s.host;
+            document.getElementById('editServerPort').value = s.port;
+            document.getElementById('editServerUsername').value = s.username;
+            document.getElementById('editServerVersion').value = s.version || 'auto';
+            document.getElementById('editServerPassword').value = s.password || '';
+            document.getElementById('btnDeleteServer').style.display = 'inline-flex';
+            document.getElementById('editModal').style.display = 'flex';
+        }
+
+        function closeEditModal() {
+            document.getElementById('editModal').style.display = 'none';
+        }
+
+        function handleDeleteCurrentServer() {
+            const id = document.getElementById('editServerId').value;
+            const s = serversConfig.find(item => item.id === id);
+            const name = s ? s.name : 'Server';
+            closeEditModal();
+            confirmDeleteServer(id, name);
+        }
+
+        function handleSaveServer(e) {
+            e.preventDefault();
+            const mode = document.getElementById('modalMode').value;
+            const data = {
+                id: document.getElementById('editServerId').value,
+                name: document.getElementById('editServerName').value.trim(),
+                host: document.getElementById('editServerHost').value.trim(),
+                port: parseInt(document.getElementById('editServerPort').value, 10) || 25565,
+                username: document.getElementById('editServerUsername').value.trim(),
+                version: document.getElementById('editServerVersion').value.trim() || 'auto',
+                password: document.getElementById('editServerPassword').value.trim() || null,
+                description: document.getElementById('editServerDesc').value.trim(),
+                autoStart: document.getElementById('editServerStartNow').checked
+            };
+
+            if (mode === 'add') {
+                socket.emit('create_server', data);
+            } else {
+                socket.emit('update_server_config', data);
+            }
+            closeEditModal();
+        }
+
+        // --- SOCKET.IO LISTENERS ---
+        socket.on('bot_system_stats', (stats) => { updateSystemStatsDisplay(stats); });
+
+        socket.on('connect', () => {
+            const token = localStorage.getItem('odinlux_token');
+            if (token) {
+                socket.emit('authenticate', { token });
+            }
+        });
+
+        socket.on('servers_list_updated', (newList) => {
+            serversConfig = newList;
+            renderServersUI();
+        });
+
+        socket.on('server_deleted', (data) => {
+            if (data && data.serverId) {
+                serversConfig = serversConfig.filter(s => s.id !== data.serverId);
+                delete botStatusCache[data.serverId];
+                delete botPositionCache[data.serverId];
+                delete botUptimeCache[data.serverId];
+                renderServersUI();
+                if (activeViewId === 'server-' + data.serverId || activeViewId === 'smp-' + data.serverId) {
+                    switchView('bots-dashboard', 'Bots Fleet Dashboard');
+                }
+            }
+        });
+
+        socket.on('fleet_refreshed', (data) => {
+            if (data && typeof data.count === 'number') {
+                showToast(`Fleet refreshed (${data.count} server${data.count === 1 ? '' : 's'})`);
+            }
+        });
+
+        socket.on('server_refreshed', (data) => {
+            if (data && data.serverId) {
+                const s = serversConfig.find(item => item.id === data.serverId);
+                showToast(`${s ? s.name : 'Server'} refreshed`);
+            }
+        });
+
+        socket.on('uptime_update', (data) => {
+            if (data && data.serverId) {
+                if (data.uptimeStart) {
+                    botUptimeCache[data.serverId] = data.uptimeStart;
+                } else {
+                    delete botUptimeCache[data.serverId];
+                }
+                updateUptimeDisplay(data.serverId);
+            }
+        });
+
+        socket.on('status', (data) => {
+            botStatusCache[data.serverId] = { text: data.text, color: data.color };
+            const badge = document.getElementById('status-' + data.serverId);
+            const indicator = document.getElementById('indicator-' + data.serverId);
+            if (badge) {
+                badge.textContent = data.text;
+                badge.style.background = data.color + '15';
+                badge.style.color = data.color;
+            }
+            if (indicator) indicator.style.background = data.color;
+            renderFleetCards();
+            updateUptimeDisplay(data.serverId);
+        });
+
+        socket.on('position', (data) => {
+            const posStr = `X: ${data.x} | Y: ${data.y} | Z: ${data.z}`;
+            botPositionCache[data.serverId] = posStr;
+            const posSpan = document.getElementById('pos-' + data.serverId);
+            if (posSpan) posSpan.textContent = posStr;
+            renderFleetCards();
+        });
+
+        socket.on('log', (data) => {
+            if (!data || !data.serverId) return;
+            if (!consoleLogsCache[data.serverId]) consoleLogsCache[data.serverId] = [];
+            consoleLogsCache[data.serverId].push(data.msg);
+            if (consoleLogsCache[data.serverId].length > 2000) {
+                consoleLogsCache[data.serverId].shift();
+            }
+            const targetConsole = document.getElementById('console-' + data.serverId);
+            if (targetConsole) {
+                const line = document.createElement('div');
+                line.className = 'log-line';
+                if (data.msg.includes('[SENT]')) line.classList.add('log-sent');
+                else if (data.msg.includes('[ERROR]') || data.msg.includes('[KICKED]') || data.msg.includes('[DENIED]') || data.msg.includes('[CONFLICT')) line.classList.add('log-kicked');
+                else if (data.msg.includes('[AUTH]') || data.msg.includes('AuthMe')) line.classList.add('log-auth');
+                line.textContent = data.msg;
+                targetConsole.appendChild(line);
+                targetConsole.scrollTop = targetConsole.scrollHeight;
+            }
+        });
+
+        socket.on('player_list', (data) => {
+            const plist = document.getElementById('plist-' + data.serverId);
+            const pcount = document.getElementById('pcount-' + data.serverId);
+            if (plist && pcount) {
+                const list = Array.isArray(data.players) ? data.players : [];
+                pcount.textContent = list.length;
+                if (list.length === 0) {
+                    plist.innerHTML = data.isOnline === false
+                        ? '<span style="color: var(--text-muted)">Bot standby / offline</span>'
+                        : '<span style="color: var(--text-muted)">0 players online</span>';
+                } else {
+                    plist.innerHTML = list.map(p => `<span class="player-tag">${escapeHtml(p)}</span>`).join('');
+                }
+            }
+        });
+
+        socket.on('smp_info_update', (data) => {
+            const st = document.getElementById('smp-status-' + data.serverId);
+            const pl = document.getElementById('smp-players-' + data.serverId);
+            const lat = document.getElementById('smp-latency-' + data.serverId);
+            if (st) st.textContent = data.online ? 'Online' : 'Offline';
+            if (pl) pl.textContent = `${data.onlinePlayers} / ${data.maxPlayers}`;
+            if (lat) lat.textContent = `${data.latency} ms`;
+        });
+
+        socket.on('gemini_ai_response', (data) => appendAiMsg(data.answer, 'bot'));
+
+        // Initialize authentication check on load
+        checkExistingAuth();
+        lucide.createIcons();
+    </script>
+</body>
+</html>

@@ -1,0 +1,21 @@
+{
+  "name": "odinlux-mc-bot",
+  "version": "1.0.0",
+  "description": "Mineflayer AFK Bot with Web Control Dashboard and Gemini AI Assistant",
+  "main": "index.js",
+  "scripts": {
+    "dev": "node index.js",
+    "start": "node index.js",
+    "build": "node -c index.js",
+    "lint": "node -c index.js"
+  },
+  "dependencies": {
+    "@google/genai": "^2.4.0",
+    "dotenv": "^17.2.3",
+    "express": "^4.21.2",
+    "minecraft-protocol": "^1.68.0",
+    "mineflayer": "^4.39.0",
+    "mineflayer-pathfinder": "^2.4.5",
+    "socket.io": "^4.8.4"
+  }
+}

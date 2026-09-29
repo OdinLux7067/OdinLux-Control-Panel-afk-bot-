@@ -1,0 +1,55 @@
+[
+  {
+    "id": "server_1",
+    "name": "Odin server",
+    "host": "163.5.201.12",
+    "port": 14183,
+    "username": "AFK_Steve",
+    "password": null,
+    "version": "auto",
+    "connectIp": "163.5.201.12:14183",
+    "description": "Odin server is online and ready for players.",
+    "ownerUsername": "Odin Lux",
+    "allowedUsers": []
+  },
+  {
+    "id": "server_2",
+    "name": "THEE LOBBY",
+    "host": "intel-3.rynixcloudinc.dpdns.org",
+    "port": 2016,
+    "username": "THEELOBBYhosting",
+    "password": "THEELOBBYhosting",
+    "version": "auto",
+    "connectIp": "intel-3.rynixcloudinc.dpdns.org:2016",
+    "description": "THEE LOBBY server is online and ready for players.",
+    "ownerUsername": "Odin Lux",
+    "allowedUsers": []
+  },
+  {
+    "id": "server_3",
+    "name": "THEE LOBBY 3.0",
+    "host": "163.5.201.11",
+    "port": 12448,
+    "username": "THEELOBBYhosting",
+    "password": null,
+    "version": "auto",
+    "connectIp": "163.5.201.11:12448",
+    "description": "THEE LOBBY 3.0 server is online and ready for players.",
+    "ownerUsername": "Odin Lux",
+    "allowedUsers": []
+  },
+  {
+    "id": "server_1790520930103",
+    "name": "TheNexusfleet",
+    "host": "nexusfleet07.mcsh.io",
+    "port": 25565,
+    "username": "TheNexusfleet",
+    "password": null,
+    "version": "auto",
+    "connectIp": "nexusfleet07.mcsh.io:25565",
+    "description": "TheNexusfleet Paper 1.21 Server",
+    "autoStart": true,
+    "ownerUsername": "Odin Lux",
+    "allowedUsers": []
+  }
+]
