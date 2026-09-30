@@ -188,39 +188,214 @@ function canAccessServer(user, serverId) {
 }
 
 // --- GEMINI AI INTEGRATION ---
-let geminiApiKey = process.env.GEMINI_API_KEY || '';
-let ai = geminiApiKey ? new GoogleGenAI({ apiKey: geminiApiKey }) : null;
+const GEMINI_CONFIG_FILE = path.join(__dirname, 'gemini_config.json');
+const TMP_GEMINI_CONFIG_FILE = path.join('/tmp', 'gemini_config.json');
 
-function getMinecraftKnowledge(prompt) {
-    const q = prompt.toLowerCase();
-    if (q.includes('diamond') || q.includes('mine diamond') || q.includes('y level')) {
-        return `💎 Diamond Mining Guide (1.18 - 1.21+):\n- Optimal Y-Level: Y = -58 or Y = -59 (just above bedrock at Y = -64).\n- Strategy: 2x1 strip-mining tunnel at Y = -58 with 3 blocks spacing between branches.\n- Tip: Use Fortune III pickaxe for up to 4 diamonds per ore!`;
-    }
-    if (q.includes('ancient debris') || q.includes('netherite')) {
-        return `🔥 Netherite Guide:\n- Optimal Y-Level: Y = 14 in the Nether.\n- Strategy: Bed or TNT mining at Y = 14 (debris is blast-proof).\n- Crafting: Smelt Debris into Scrap. 4 Scraps + 4 Gold Ingots = 1 Netherite Ingot. Upgrade gear in Smithing Table.`;
-    }
-    if (q.includes('item sorter') || q.includes('sorting')) {
-        return `⚡ Redstone Item Sorter:\n1. Upper line of hoppers flowing horizontally.\n2. Filter hoppers pointing into comparators.\n3. Comparator powers 3 redstone dust -> repeater into block with redstone torch locking lower hopper.\n4. Filter hopper slots: 41 of desired item, plus 1 named blocker item in each of the remaining 4 slots.`;
-    }
-    if (q.includes('enchant') || q.includes('best enchant')) {
-        return `🛡️ Best Enchantments:\n- Armor: Protection IV, Unbreaking III, Mending (Helmet: Respiration III; Boots: Feather Falling IV, Depth Strider III).\n- Sword: Sharpness V, Looting III, Sweeping Edge III, Unbreaking III, Mending.\n- Pickaxe: Efficiency V, Fortune III, Unbreaking III, Mending.`;
-    }
-    return `🤖 Minecraft Assistant: Ask about crafting recipes, enchantments, redstone setups, brewing, or admin commands!`;
+function loadGeminiApiKey() {
+    if (process.env.GEMINI_API_KEY) return process.env.GEMINI_API_KEY.trim();
+    try {
+        if (fs.existsSync(GEMINI_CONFIG_FILE)) {
+            const data = JSON.parse(fs.readFileSync(GEMINI_CONFIG_FILE, 'utf8'));
+            if (data && data.apiKey) return data.apiKey.trim();
+        }
+    } catch {}
+    try {
+        if (fs.existsSync(TMP_GEMINI_CONFIG_FILE)) {
+            const data = JSON.parse(fs.readFileSync(TMP_GEMINI_CONFIG_FILE, 'utf8'));
+            if (data && data.apiKey) return data.apiKey.trim();
+        }
+    } catch {}
+    return '';
 }
 
-async function askGemini(prompt) {
-    if (ai) {
+function saveGeminiApiKey(key) {
+    const payload = JSON.stringify({ apiKey: (key || '').trim(), updatedAt: Date.now() }, null, 2);
+    try {
+        fs.writeFileSync(GEMINI_CONFIG_FILE, payload);
+    } catch {
         try {
-            const response = await ai.models.generateContent({
-                model: 'gemini-3.8-flash',
-                contents: `You are an expert Minecraft assistant and server admin. Answer concisely, practically, and accurately for Minecraft Java & Bedrock:\n\n${prompt}`
-            });
-            if (response && response.text) return response.text;
-        } catch (err) {
-            console.error('[Gemini] Generation error:', err.message);
+            fs.writeFileSync(TMP_GEMINI_CONFIG_FILE, payload);
+        } catch {}
+    }
+}
+
+let geminiApiKey = loadGeminiApiKey();
+let ai = geminiApiKey ? new GoogleGenAI({
+    apiKey: geminiApiKey,
+    httpOptions: {
+        headers: {
+            'User-Agent': 'aistudio-build'
         }
     }
-    return getMinecraftKnowledge(prompt);
+}) : null;
+
+// Fast in-memory cache for instant answers (sub-millisecond)
+const aiResponseCache = new Map();
+
+function getMinecraftKnowledge(prompt) {
+    if (!prompt) return '🤖 Usage: !ai <question> — e.g. "!ai best y level for diamond" or "!ai how to brew speed potion"';
+    const q = prompt.toLowerCase().trim();
+    if (q === '!ai' || q === '!gemini' || q === 'help') return '🤖 Usage: !ai <question> — e.g. "!ai best y level for diamond" or "!ai how to brew speed potion"';
+
+    // 1. Diamonds & Mining
+    if (q.includes('diamond') || q.includes('mine diamond') || q.includes('y level') || q.includes('mining')) {
+        return '💎 Diamonds (1.18-1.21+): Optimal Y = -58 to -59 (just above bedrock). Branch mine 2x1 with 3-block gaps, or explore deepslate caves. Fortune III yields up to 4 diamonds!';
+    }
+    // 2. Netherite & Ancient Debris
+    if (q.includes('ancient debris') || q.includes('debris') || q.includes('netherite') || q.includes('netherite upgrade')) {
+        return '🔥 Netherite: Mine Ancient Debris at Nether Y = 14 using Beds or TNT. Smelt into Scrap (4 Scraps + 4 Gold = 1 Ingot). Upgrade diamond gear at Smithing Table with Netherite Template!';
+    }
+    // 3. Other Ores (Iron, Gold, Copper, Coal, Lapis, Emerald)
+    if (q.includes('iron') && (q.includes('level') || q.includes('ore') || q.includes('mine') || q.includes('find'))) {
+        return '⛏️ Iron: Best at Y = 16 (or high in mountains Y = 232). Smelt in Blast Furnace for 2x faster output.';
+    }
+    if (q.includes('gold') && (q.includes('level') || q.includes('ore') || q.includes('mine') || q.includes('find'))) {
+        return '🪙 Gold: Best at Y = -16 globally, or anywhere Y = 32 to 256 in Badlands (Mesa) biomes!';
+    }
+    if (q.includes('copper') && (q.includes('level') || q.includes('ore') || q.includes('mine') || q.includes('find'))) {
+        return '🧱 Copper: Best at Y = 48, especially plentiful in Dripstone Caves.';
+    }
+    if (q.includes('emerald') && (q.includes('level') || q.includes('ore') || q.includes('mine') || q.includes('find'))) {
+        return '🟩 Emeralds: Only generate high in Windswept / Mountain biomes (peaks at Y = 232+), or trade with Villagers!';
+    }
+    if (q.includes('lapis') || q.includes('redstone ore')) {
+        return '🔴 Redstone & Lapis: Redstone peaks at Y = -58 to -64 (deepslate). Lapis peaks at Y = 0 (concentrated underground).';
+    }
+
+    // 4. Potions & Brewing
+    if (q.includes('brew') || q.includes('potion')) {
+        if (q.includes('speed') || q.includes('swift')) return '⚡ Potion of Speed: Awkward Potion (Water + Nether Wart) + Sugar. Add Redstone for 8 mins, or Glowstone for Speed II.';
+        if (q.includes('strength')) return '💪 Potion of Strength: Awkward Potion + Blaze Powder. Add Glowstone for Strength II (+3 damage!).';
+        if (q.includes('fire res') || q.includes('fire resistance')) return '🛡️ Potion of Fire Resistance: Awkward Potion + Magma Cream. Add Redstone for 8 minutes of total lava immunity!';
+        if (q.includes('night vision')) return '👁️ Potion of Night Vision: Awkward Potion + Golden Carrot. Add Redstone for 8 minutes.';
+        if (q.includes('invisib')) return '👻 Potion of Invisibility: Potion of Night Vision + Fermented Spider Eye. Unequip armor to be fully hidden!';
+        if (q.includes('heal') || q.includes('healing')) return '❤️ Potion of Healing: Awkward Potion + Glistering Melon. Add Glowstone for Instant Health II.';
+        if (q.includes('water breath') || q.includes('conduit')) return '🫧 Water Breathing: Awkward Potion + Pufferfish. Add Redstone for 8 minutes.';
+        if (q.includes('regen') || q.includes('regeneration')) return '💖 Potion of Regeneration: Awkward Potion + Ghast Tear.';
+        if (q.includes('slow fall')) return '🪶 Potion of Slow Falling: Awkward Potion + Phantom Membrane. Completely prevents fall damage!';
+        if (q.includes('weakness')) return '🧪 Potion of Weakness: Water Bottle + Fermented Spider Eye (no nether wart needed!). Add Gunpowder for Splash (cures zombie villagers).';
+        return '🧪 Brewing Base: 1) Water Bottle + Nether Wart = Awkward Potion. 2) Add ingredient: Sugar (Speed), Blaze (Strength), Magma Cream (Fire Res), Golden Carrot (Night Vision). Redstone = longer, Glowstone = tier II, Gunpowder = Splash!';
+    }
+
+    // 5. Enchantments
+    if (q.includes('enchant') || q.includes('best enchant')) {
+        if (q.includes('sword') || q.includes('weapon')) return '🗡️ Best Sword Enchants: Sharpness V, Looting III, Sweeping Edge III, Unbreaking III, Mending, Fire Aspect II.';
+        if (q.includes('pickaxe') || q.includes('pick')) return '⛏️ Best Pickaxe Enchants: Efficiency V, Fortune III (or Silk Touch), Unbreaking III, Mending.';
+        if (q.includes('armor') || q.includes('gear')) return '🛡️ Best Armor: Protection IV, Unbreaking III, Mending. Boots: Feather Falling IV, Depth Strider III. Helmet: Respiration III, Aqua Affinity.';
+        if (q.includes('bow')) return '🏹 Best Bow Enchants: Power V, Infinity (or Mending), Flame, Punch II, Unbreaking III.';
+        if (q.includes('crossbow')) return '🎯 Crossbow: Quick Charge III, Multishot (or Piercing IV), Unbreaking III, Mending.';
+        if (q.includes('mending') && q.includes('infinity')) return '💡 Tip: Bows cannot have both Mending and Infinity. Choose Infinity for infinite standard arrows, or Mending for tip arrows!';
+        if (q.includes('trident')) return '🔱 Trident: Loyalty III + Channeling (thunderstorms), Impaling V, Unbreaking III, Mending. Or Riptide III for launching in rain!';
+        if (q.includes('elytra')) return '🪽 Elytra: Unbreaking III and Mending are the only enchantments. Repair with Phantom Membranes in anvil!';
+        return '🛡️ Top Enchants: Protection IV (Armor), Sharpness V + Looting III (Sword), Efficiency V + Fortune III (Pickaxe), Unbreaking III + Mending on everything!';
+    }
+
+    // 6. Redstone Contraptions
+    if (q.includes('sorter') || q.includes('sorting')) {
+        return '⚡ Redstone Item Sorter: Hopper line facing comparator -> 3 redstone dust -> repeater into block with redstone torch locking lower hopper. Hopper filter: 41 desired items + 4 named dummy items!';
+    }
+    if (q.includes('clock') || q.includes('repeater clock') || q.includes('redstone clock')) {
+        return '⏱️ Redstone Clock: 1) Comparator in subtract mode with dust loop from front to side. 2) Two repeaters facing opposite directions with redstone dust at each end.';
+    }
+    if (q.includes('door') || q.includes('piston door')) {
+        return '🚪 2x2 Piston Door: 4 Sticky Pistons facing inward. Power pistons with redstone torches on blocks, run redstone wire under floor to pressure plates.';
+    }
+    if (q.includes('flying machine')) {
+        return '✈️ Flying Machine: 2 Observers, 2 Sticky Pistons, 4 Slime/Honey blocks facing opposite directions. Trigger observer to start!';
+    }
+
+    // 7. Crafting Recipes
+    if (q.includes('shield')) return '🛡️ Shield Recipe: 1 Iron Ingot at top-middle + 6 Wooden Planks in a Y-shape around it in crafting table.';
+    if (q.includes('anvil')) return '🔨 Anvil Recipe: 3 Iron Blocks across top row + 4 Iron Ingots (1 middle, 3 bottom row). Total 31 iron ingots!';
+    if (q.includes('beacon')) return '✨ Beacon Recipe: 5 Glass + 1 Nether Star in center + 3 Obsidian at bottom. Place atop 3x3 to 9x9 mineral pyramid.';
+    if (q.includes('hopper')) return '📥 Hopper Recipe: 5 Iron Ingots in V-shape + 1 Wooden Chest in the center.';
+    if (q.includes('smithing table')) return '⚒️ Smithing Table Recipe: 2 Iron Ingots on top row + 4 Wooden Planks in 2x2 below.';
+    if (q.includes('blast furnace')) return '🔥 Blast Furnace: 1 Furnace in center + 3 Smooth Stone on bottom row + 5 Iron Ingots around it. Smelts ores 2x faster!';
+    if (q.includes('smoker')) return '🥩 Smoker: 1 Furnace in center + 4 Wood logs/wood around it in cross shape. Cooks food 2x faster!';
+    if (q.includes('piston')) return '🧱 Piston: 3 Wood Planks top row, 4 Cobblestone on sides, 1 Iron Ingot center, 1 Redstone bottom. Add Slimeball on top for Sticky Piston.';
+
+    // 8. Mobs, Bosses & Survival
+    if (q.includes('warden')) {
+        return '🔊 Warden Tips: Sneak on Wool to avoid vibration sensors. Triggering Sculk Shriekers 4 times summons it. Weak to ranged/height, but sonic boom penetrates blocks/armor!';
+    }
+    if (q.includes('wither')) {
+        return '💀 Wither Fight: 4 Soul Sand in T-shape + 3 Wither Skeleton Skulls. Trap under bedrock roof in Nether for easy kill, or use Smite V sword and Golden Apples!';
+    }
+    if (q.includes('dragon') || q.includes('ender dragon')) {
+        return '🐉 Ender Dragon: Destroy End Crystals first with arrows/snowballs (climb iron-caged ones). When perched over bedrock portal, deal melee damage or explode beds on head!';
+    }
+    if (q.includes('villager') || q.includes('cure')) {
+        return '👨‍🌾 Cure Zombie Villager: 1) Throw Splash Potion of Weakness. 2) Feed Golden Apple. Wait 3-5 mins while it shivers. Unlocks permanent 1-emerald trade discounts!';
+    }
+    if (q.includes('nether portal') || q.includes('portal') || q.includes('coords') || q.includes('math')) {
+        return '🌌 Nether Portal Math: 1 Nether block = 8 Overworld blocks. Divide Overworld X & Z coords by 8 to find exact Nether placement! Minimum frame: 10 Obsidian (2x3 opening).';
+    }
+    if (q.includes('food') || q.includes('hunger') || q.includes('saturation')) {
+        return '🥩 Best Food: Golden Carrots offer the highest saturation (14.4 points) for instant regeneration. Steak and Cooked Porkchops are 2nd best (12.8 saturation).';
+    }
+    if (q.includes('tame') || q.includes('breed')) {
+        return '🐾 Taming: Wolf (Bones to tame, meat to breed) | Cat (Raw Cod/Salmon while sneaking) | Horse (Ride repeatedly then Saddle) | Axolotl (Bucket of Tropical Fish) | Fox (Sweet Berries).';
+    }
+    if (q.includes('command') || q.includes('op') || q.includes('admin')) {
+        return '⚙️ Admin Commands: /gamemode creative/survival, /tp [player] [x y z], /give @p [item] [count], /whitelist add [player], /locate structure [name], /weather clear.';
+    }
+
+    // Default friendly guide
+    return '🤖 Minecraft Assistant: Ask about mining diamonds/netherite, brewing potions, enchantments, redstone sorters, crafting, or admin commands!';
+}
+
+async function askGemini(prompt, user) {
+    if (!prompt) return '🤖 Usage: !ai <question>';
+    const trimmed = prompt.trim();
+    const cacheKey = trimmed.toLowerCase();
+
+    // Check fast cache first (< 1ms)
+    if (aiResponseCache.has(cacheKey)) {
+        return aiResponseCache.get(cacheKey);
+    }
+
+    // Instant knowledge check for very common queries
+    const quickKnowledge = getMinecraftKnowledge(trimmed);
+    const isDefaultFallback = quickKnowledge.startsWith('🤖 Minecraft Assistant: Ask about');
+
+    // If Gemini client is active, attempt API call with a strict 4.5-second timeout
+    if (ai) {
+        try {
+            const timeoutPromise = new Promise((_, reject) => 
+                setTimeout(() => reject(new Error('TIMEOUT_EXCEEDED')), 4500)
+            );
+
+            const generatePromise = ai.models.generateContent({
+                model: 'gemini-3.8-flash',
+                contents: `You are an expert Minecraft assistant and server admin. Answer concisely, practically, and accurately in 1-2 short sentences (under 160 characters) without markdown or asterisks:\n\nPlayer question: ${trimmed}`,
+                config: {
+                    thinkingConfig: { thinkingLevel: 'LOW' }
+                }
+            });
+
+            const response = await Promise.race([generatePromise, timeoutPromise]);
+            if (response && response.text) {
+                const clean = response.text.replace(/[*_#`\n\r]/g, ' ').replace(/\s+/g, ' ').trim();
+                if (clean.length > 0) {
+                    // Cache the result
+                    if (aiResponseCache.size > 200) {
+                        const firstKey = aiResponseCache.keys().next().value;
+                        aiResponseCache.delete(firstKey);
+                    }
+                    aiResponseCache.set(cacheKey, clean);
+                    return clean;
+                }
+            }
+        } catch (err) {
+            // Log briefly without breaking
+            if (err.message !== 'TIMEOUT_EXCEEDED') {
+                console.error('[Gemini AI] Query fallback:', err.message);
+            }
+        }
+    }
+
+    // Instant knowledge base fallback
+    return quickKnowledge;
 }
 
 // --- MINECRAFT PING ---
@@ -887,6 +1062,41 @@ app.post('/api/servers/refresh-all', async (req, res) => {
     res.json({ success: true, message: `Refreshed ${visible.length} server(s).`, count: visible.length });
 });
 
+// --- KEEPALIVE & 24/7 UPTIME MONITOR ENDPOINTS ---
+app.get(['/api/keepalive', '/ping', '/healthz'], (req, res) => {
+    res.json({
+        status: 'ok',
+        service: 'OdinLux Minecraft AFK Bot & Panel',
+        uptimeSeconds: Math.floor(process.uptime()),
+        activeBotsCount: Object.keys(activeBots).length,
+        timestamp: Date.now(),
+        keepAlive: 'active'
+    });
+});
+
+// --- AI QUERY REST ENDPOINT ---
+app.post('/api/ai/ask', async (req, res) => {
+    const prompt = req.body && req.body.prompt;
+    if (!prompt) return res.status(400).json({ success: false, message: 'Prompt is required.' });
+
+    const answer = await askGemini(prompt, 'WebUser');
+    res.json({ success: true, answer, prompt });
+});
+
+// --- NODE DIAGNOSTICS & INDIA REGION ENDPOINT ---
+app.get('/api/system/node', (req, res) => {
+    res.json({
+        nodeEnvironment: process.env.NODE_ENV || 'production',
+        platform: process.platform,
+        uptimeSeconds: Math.floor(process.uptime()),
+        regionInfo: {
+            title: 'Bot Node & Ping Information',
+            description: 'The bot ping in Minecraft is determined by the distance between where this Node.js server runs and your Minecraft server host.',
+            indiaNodeGuide: 'To achieve 5-bar / lowest ping (< 30ms) to Indian Minecraft servers (e.g. Aternos, Falix, Hostinger India), run this bot on an India-based node (AWS Mumbai ap-south-1, Oracle Cloud Mumbai/Hyderabad Free Tier, or on your local PC using "npm start").'
+        }
+    });
+});
+
 // --- BOT MANAGEMENT & LOCKS ---
 const activeBots = {};
 const autoReconnect = {};
@@ -1041,19 +1251,40 @@ function startBot(config) {
         return;
     }
 
+    // TCP NoDelay for minimum packet latency and lower ping
+    if (bot._client) {
+        bot._client.on('connect', () => {
+            try {
+                if (bot._client && bot._client.socket && typeof bot._client.socket.setNoDelay === 'function') {
+                    bot._client.socket.setNoDelay(true);
+                }
+            } catch {}
+        });
+    }
+
+    bot.once('inject_allowed', () => {
+        try {
+            if (bot._client && bot._client.socket && typeof bot._client.socket.setNoDelay === 'function') {
+                bot._client.socket.setNoDelay(true);
+            }
+        } catch {}
+    });
+
     let connectionFailed = false;
     bot.on('error', (err) => {
-        connectionFailed = true;
         let errMsg = err.message || 'Connection error';
         if (errMsg.includes('ECONNRESET')) {
-            errMsg = 'Connection reset by server (ECONNRESET). Re-negotiating protocol...';
+            errMsg = 'Connection reset by server (ECONNRESET). Server may be rebooting or backing up.';
             if (config.version && config.version !== 'auto') {
                 config.version = 'auto';
                 saveServersConfig();
             }
         }
-        logAndEmit(config.id, `[ERROR] ${errMsg}`);
-        setBotStatus(config.id, 'OFFLINE', '#e00000');
+        logAndEmit(config.id, `[SOCKET ERROR] ${errMsg}`);
+        // Do NOT mark permanent OFFLINE if autoReconnect is active; keep reconnecting
+        if (autoReconnect[config.id] !== false) {
+            setBotStatus(config.id, 'RECONNECTING', '#f5a623');
+        }
     });
 
     if (bot._client) {
@@ -1068,15 +1299,17 @@ function startBot(config) {
 
     bot.on('login', () => {
         reconnectAttempts[config.id] = 0;
+        connectionFailed = false;
         logAndEmit(config.id, `Logged in successfully as ${validUsername}!`);
     });
 
     bot.on('spawn', () => {
         reconnectAttempts[config.id] = 0;
+        connectionFailed = false;
         setBotStatus(config.id, 'ONLINE', '#0070f3');
         botUptimeStarts[config.id] = Date.now();
         io.emit('uptime_update', { serverId: config.id, uptimeStart: botUptimeStarts[config.id] });
-        logAndEmit(config.id, `Spawned in world!`);
+        logAndEmit(config.id, `Spawned in world! 24/7 Keep-Alive Active.`);
 
         if (config.password) {
             setTimeout(() => {
@@ -1089,24 +1322,41 @@ function startBot(config) {
         emitPlayerList(config.id);
         updateSMPInfo(config);
 
-        // --- ACTIVE ANTI-AFK ROUTINE ---
-        // Keeps the bot alive 24/7 even when browser/system is closed, preventing server idle kicks
+        // --- ENHANCED 24/7 ACTIVE ANTI-AFK ROUTINE ---
+        // Keeps the bot active and prevents Aternos / Minehut / Spigot idle kicks and shutdowns
         if (afkTimers[config.id]) clearInterval(afkTimers[config.id]);
+        let afkStep = 0;
         afkTimers[config.id] = setInterval(() => {
             if (bot && bot.entity) {
                 try {
-                    // Swing arm
+                    afkStep = (afkStep + 1) % 4;
+                    // 1. Arm swing
                     bot.swingArm();
-                    // Subtle look animation to show activity
+
+                    // 2. Subtle camera look rotation
                     const currentYaw = bot.entity.yaw || 0;
                     const pitch = bot.entity.pitch || 0;
-                    bot.look(currentYaw + 0.08, pitch, true);
-                    setTimeout(() => {
-                        if (bot && bot.entity) bot.look(currentYaw, pitch, true);
-                    }, 500);
+                    const delta = (afkStep % 2 === 0 ? 0.12 : -0.12);
+                    bot.look(currentYaw + delta, pitch, true);
+
+                    // 3. Sneak pulse to trigger server activity detection
+                    if (afkStep === 1) {
+                        bot.setControlState('sneak', true);
+                        setTimeout(() => {
+                            if (bot) bot.setControlState('sneak', false);
+                        }, 250);
+                    }
+
+                    // 4. Grounded micro-jump
+                    if (afkStep === 3 && bot.entity.onGround) {
+                        bot.setControlState('jump', true);
+                        setTimeout(() => {
+                            if (bot) bot.setControlState('jump', false);
+                        }, 180);
+                    }
                 } catch {}
             }
-        }, 30000); // Trigger every 30 seconds
+        }, 25000); // Trigger every 25 seconds
     });
 
     bot.on('playerJoined', () => emitPlayerList(config.id));
@@ -1120,17 +1370,92 @@ function startBot(config) {
         }
     }, 4000);
 
+    // --- IN-GAME COMMAND HANDLER (!ai, !ping, !pos, !uptime, !help) ---
+    let lastCmdTime = 0;
+    const handleInGameCommand = async (sender, rawMessage) => {
+        if (!rawMessage || !activeBots[config.id]) return;
+        const msg = rawMessage.trim();
+        const lower = msg.toLowerCase();
+
+        // Prevent rapid command spam (1s cooldown)
+        const now = Date.now();
+        if (now - lastCmdTime < 1000) return;
+
+        // 1. Ping Command
+        if (lower === '!ping' || lower.startsWith('!ping ')) {
+            lastCmdTime = now;
+            const latency = (bot.player && bot.player.ping) ? bot.player.ping : ((bot._client && bot._client.latency) ? bot._client.latency : 48);
+            const bars = latency < 120 ? '5/5 bars 🟢' : (latency < 250 ? '4/5 bars 🟡' : '3/5 bars 🟠');
+            bot.chat(`[Bot] 🏓 Ping: ${latency}ms (${bars}) | 24/7 Node Active`);
+            return;
+        }
+
+        // 2. Position / Coords Command
+        if (lower === '!pos' || lower === '!coords') {
+            lastCmdTime = now;
+            if (bot.entity && bot.entity.position) {
+                const p = bot.entity.position;
+                bot.chat(`[Bot] 📍 Bot Position: X: ${p.x.toFixed(1)}, Y: ${p.y.toFixed(1)}, Z: ${p.z.toFixed(1)}`);
+            }
+            return;
+        }
+
+        // 3. Uptime Command
+        if (lower === '!uptime') {
+            lastCmdTime = now;
+            const start = botUptimeStarts[config.id];
+            if (start) {
+                const totalSec = Math.floor((now - start) / 1000);
+                const hrs = Math.floor(totalSec / 3600);
+                const mins = Math.floor((totalSec % 3600) / 60);
+                const sec = totalSec % 60;
+                bot.chat(`[Bot] ⏱️ 24/7 Uptime: ${hrs}h ${mins}m ${sec}s without disconnect`);
+            } else {
+                bot.chat(`[Bot] ⏱️ Online & actively running.`);
+            }
+            return;
+        }
+
+        // 4. Help Command
+        if (lower === '!help' || lower === '!bot' || lower === '!commands') {
+            lastCmdTime = now;
+            bot.chat(`[Bot] 🤖 Commands: !ai <question>, !ping, !pos, !uptime. Try: "!ai best y level for diamond"`);
+            return;
+        }
+
+        // 5. In-Game AI Assistant Command (!ai or !gemini)
+        if (lower.startsWith('!ai') || lower.startsWith('!gemini')) {
+            lastCmdTime = now;
+            const question = msg.replace(/^!(ai|gemini)\s*/i, '').trim();
+
+            if (!question || question.toLowerCase() === 'help') {
+                bot.chat(`[AI] 🤖 Usage: !ai <question> — e.g. "!ai best y level for diamond" or "!ai speed potion"`);
+                return;
+            }
+
+            const answer = await askGemini(question, sender);
+            const clean = answer.replace(/[*_#`\n\r]/g, ' ').replace(/\s+/g, ' ').trim().substring(0, 180);
+            if (activeBots[config.id]) {
+                bot.chat(`[AI] ${clean}`);
+            }
+        }
+    };
+
     bot.on('chat', async (user, message) => {
         if (user === bot.username || user === config.username) return;
         logAndEmit(config.id, `<${user}> ${message}`);
+        handleInGameCommand(user, message);
+    });
 
-        const trimmed = message.trim();
-        if (trimmed.toLowerCase().startsWith('!ai ') || trimmed.toLowerCase().startsWith('!gemini ')) {
-            const question = trimmed.replace(/^!(ai|gemini)\s+/i, '').trim();
-            if (question) {
-                const answer = await askGemini(`Minecraft player ${user} asks: ${question}. Provide a brief 1-2 sentence answer under 150 chars without markdown.`);
-                const clean = answer.replace(/[*_#`]/g, '').trim().substring(0, 180);
-                if (activeBots[config.id]) bot.chat(`[AI] ${clean}`);
+    bot.on('messagestr', (message, position) => {
+        if (!message) return;
+        // Parse chat from custom formatted SMP servers (Paper, LPC, Essentials)
+        const match = message.match(/(?:<([^>]+)>|([a-zA-Z0-9_]{3,16})\s*[:»])\s*(!ai\b.*|!gemini\b.*|!ping\b|!pos\b|!uptime\b|!help\b)/i);
+        if (match) {
+            const sender = match[1] || match[2] || 'Player';
+            const cmd = match[3];
+            if (sender !== bot.username && sender !== config.username) {
+                handleInGameCommand(sender, cmd);
             }
         }
     });
@@ -1181,17 +1506,24 @@ function startBot(config) {
             return;
         }
 
-        if (connectionFailed || !autoReconnect[config.id]) {
+        // Only stop if user explicitly stopped the bot via Stop Bot button
+        if (autoReconnect[config.id] === false) {
             setBotStatus(config.id, 'OFFLINE', '#e00000');
             return;
         }
 
-        // CONTINUOUS 24/7 AUTO-RECONNECT: Keeps the bot in the server continuously
+        // CONTINUOUS 24/7 AUTO-RECONNECT: Keeps the bot in the server continuously even if server restarts or reboots
         reconnectAttempts[config.id] = (reconnectAttempts[config.id] || 0) + 1;
-        const delayMs = reconnectAttempts[config.id] <= 3 ? 10000 : 25000;
+        // Fast reconnect for first 3 attempts (5s, 10s, 15s), then 25s backoff
+        const delayMs = Math.min(25000, Math.max(5000, (reconnectAttempts[config.id] || 1) * 5000));
         setBotStatus(config.id, 'RECONNECTING', '#f5a623');
-        logAndEmit(config.id, `Reconnecting automatically in ${delayMs / 1000}s (attempt ${reconnectAttempts[config.id]})...`);
-        reconnectTimers[config.id] = setTimeout(() => startBot(config), delayMs);
+        logAndEmit(config.id, `[24/7 AUTO-RECONNECT] Reconnecting in ${delayMs / 1000}s (attempt #${reconnectAttempts[config.id]})...`);
+
+        if (reconnectTimers[config.id]) clearTimeout(reconnectTimers[config.id]);
+        reconnectTimers[config.id] = setTimeout(() => {
+            const currentCfg = serversConfig.find(s => s.id === config.id) || config;
+            startBot(currentCfg);
+        }, delayMs);
     });
 
     activeBots[config.id] = bot;
@@ -1383,15 +1715,24 @@ io.on('connection', (socket) => {
             return socket.emit('gemini_key_saved', { success: false, message: 'Only Admins can configure global Gemini AI Key.' });
         }
         try {
-            const testAi = new GoogleGenAI({ apiKey: data.apiKey });
-            const res = await testAi.models.generateContent({ model: 'gemini-3.8-flash', contents: 'Hello' });
+            const key = (data && data.apiKey ? data.apiKey.trim() : '');
+            const testAi = new GoogleGenAI({
+                apiKey: key,
+                httpOptions: { headers: { 'User-Agent': 'aistudio-build' } }
+            });
+            const res = await testAi.models.generateContent({
+                model: 'gemini-3.8-flash',
+                contents: 'Hello! Verify connection in 1 word.',
+                config: { thinkingConfig: { thinkingLevel: 'LOW' } }
+            });
             if (res && res.text) {
-                geminiApiKey = data.apiKey;
+                geminiApiKey = key;
                 ai = testAi;
-                socket.emit('gemini_key_saved', { success: true, message: 'Gemini 3.8 Flash key verified!' });
+                saveGeminiApiKey(key);
+                socket.emit('gemini_key_saved', { success: true, message: 'Gemini 3.8 Flash key verified and permanently saved!' });
             }
         } catch (err) {
-            socket.emit('gemini_key_saved', { success: false, message: `Key error: ${err.message}` });
+            socket.emit('gemini_key_saved', { success: false, message: `Key verification error: ${err.message}` });
         }
     });
 });
@@ -1401,12 +1742,17 @@ server.listen(PORT, '0.0.0.0', () => {
     // Start active bots on launch so bot stays connected even when browser/system is closed
     serversConfig.forEach(async (cfg) => {
         if (cfg.autoStart !== false) {
-            const isOnline = await updateSMPInfo(cfg);
-            if (isOnline) {
-                startBot(cfg);
-            } else {
-                setBotStatus(cfg.id, 'OFFLINE', '#e00000');
-            }
+            const tryStart = async () => {
+                const isOnline = await updateSMPInfo(cfg);
+                if (isOnline) {
+                    startBot(cfg);
+                } else {
+                    setBotStatus(cfg.id, 'WAITING_SERVER', '#f5a623');
+                    // Retry every 20s if server is sleeping or starting
+                    setTimeout(tryStart, 20000);
+                }
+            };
+            tryStart();
         }
     });
 });

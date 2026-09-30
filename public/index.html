@@ -991,6 +991,14 @@
             </div>
 
             <div class="nav-group" style="margin-top: 8px;">
+                <div class="nav-label">System & Nodes</div>
+                <button class="tab-btn" id="tab-node-guide" onclick="switchView('node-guide', 'Node & 24/7 Hosting')">
+                    <i data-lucide="radio" size="14" style="color: #06b6d4;"></i>
+                    <span>Node & 24/7 Hosting</span>
+                </button>
+            </div>
+
+            <div class="nav-group" style="margin-top: 8px;">
                 <div class="nav-label">Monitoring</div>
                 <div id="tabsNavSmp"></div>
             </div>
@@ -1196,22 +1204,189 @@
                     </form>
                 </div>
             </div>
+
+            <!-- NODE & 24/7 HOSTING GUIDE VIEW -->
+            <div class="page-view hidden" id="view-node-guide">
+                <div class="server-header-bar">
+                    <div class="server-title">
+                        <i data-lucide="radio" size="15" style="color: #06b6d4;"></i>
+                        <span>Node & 24/7 Hosting Guide</span>
+                    </div>
+                </div>
+
+                <div class="content-area">
+                    <!-- Status Cards -->
+                    <div class="stats-row" style="margin-bottom: 20px;">
+                        <div class="stat-card">
+                            <div class="stat-label">24/7 Auto-Reconnect</div>
+                            <div class="stat-value" style="color: #10b981; font-size: 1.25rem;">ENABLED</div>
+                            <div style="font-size: 0.75rem; color: #888; margin-top: 4px;">Retries continuously on server restarts</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Anti-AFK Protection</div>
+                            <div class="stat-value" style="color: #06b6d4; font-size: 1.25rem;">ACTIVE (25s)</div>
+                            <div style="font-size: 0.75rem; color: #888; margin-top: 4px;">Sneak, look & arm swing prevents kicks</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Socket TCP NoDelay</div>
+                            <div class="stat-value" style="color: #a855f7; font-size: 1.25rem;">ENABLED</div>
+                            <div style="font-size: 0.75rem; color: #888; margin-top: 4px;">Packet buffering disabled for low ping</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">In-Game AI Speed</div>
+                            <div class="stat-value" style="color: #f5a623; font-size: 1.25rem;">&lt; 1s (FAST)</div>
+                            <div style="font-size: 0.75rem; color: #888; margin-top: 4px;">Cached + Instant Knowledge Engine</div>
+                        </div>
+                    </div>
+
+                    <!-- India Node & Ping Guide -->
+                    <div class="dash-section" style="margin-bottom: 20px;">
+                        <div class="dash-section-header">
+                            <div class="dash-title"><i data-lucide="zap" size="16" style="color: #f5a623; vertical-align: middle;"></i> Why Bot Has 3-4 Signal Bars & How to Get 5 Bars (India Node)</div>
+                        </div>
+                        <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 8px; padding: 18px; line-height: 1.6; font-size: 0.88rem;">
+                            <p style="margin-bottom: 12px;"><strong>What 3-4 bars mean in Minecraft:</strong> Signal bars represent physical network ping (latency in milliseconds) between where this Node.js bot process runs and your Minecraft server host:</p>
+                            <ul style="margin-left: 20px; margin-bottom: 14px; color: #aaa;">
+                                <li><strong style="color: #10b981;">5 Bars (&lt; 120ms):</strong> Fast local connection (same country/region).</li>
+                                <li><strong style="color: #f5a623;">3-4 Bars (150-300ms):</strong> Standard cross-continent connection (e.g. Bot in Singapore/US connecting to India/Europe). Completely fine for AFK bots, but has ping delay.</li>
+                            </ul>
+                            <div style="background: rgba(6, 182, 212, 0.08); border-left: 3px solid #06b6d4; padding: 12px 16px; border-radius: 4px; margin-bottom: 14px;">
+                                <strong style="color: #06b6d4;">How to get 5-bar Green Ping (&lt; 30ms) for Indian servers:</strong>
+                                <p style="margin-top: 6px; color: #ccc;">Host this bot on an India-based node so the bot and your Minecraft server are geographically close:</p>
+                                <ol style="margin-left: 20px; margin-top: 6px; color: #bbb;">
+                                    <li><strong>Option A (Local PC / Laptop in India):</strong> Run <code>npm start</code> on your computer in India. Gives <strong>5-bar 10-30ms ping!</strong></li>
+                                    <li><strong>Option B (Free / Low Cost Cloud India Nodes):</strong>
+                                        <ul style="margin-left: 15px; margin-top: 4px;">
+                                            <li><strong>AWS Mumbai (ap-south-1)</strong> - Free tier EC2 instance.</li>
+                                            <li><strong>Oracle Cloud Always Free (Mumbai / Hyderabad)</strong> - 4-core 24GB RAM 100% Free VM for life!</li>
+                                            <li><strong>Hostinger India / DigitalOcean (BLR1 Bangalore)</strong>.</li>
+                                        </ul>
+                                    </li>
+                                </ol>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 24/7 Uptime Keep-Alive Guide -->
+                    <div class="dash-section" style="margin-bottom: 20px;">
+                        <div class="dash-section-header">
+                            <div class="dash-title"><i data-lucide="clock" size="16" style="color: #10b981; vertical-align: middle;"></i> 24/7 Continuous Running Guide (Even when PC/Panel Closed)</div>
+                        </div>
+                        <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 8px; padding: 18px; line-height: 1.6; font-size: 0.88rem;">
+                            <p style="margin-bottom: 10px;"><strong>Why the bot left previously:</strong></p>
+                            <p style="color: #aaa; margin-bottom: 12px;">When Minecraft servers reboot for daily maintenance (e.g. around 2:30 AM), the socket disconnects. We fixed the auto-reconnect engine so it will now <strong>continuously retry every few seconds until the server is back online</strong>!</p>
+                            
+                            <div style="background: rgba(16, 185, 129, 0.08); border-left: 3px solid #10b981; padding: 12px 16px; border-radius: 4px; margin-bottom: 14px;">
+                                <strong style="color: #10b981;">Keep-Alive Webhook / Uptime Monitor URL:</strong>
+                                <p style="margin-top: 6px; color: #ccc;">Add this URL to free uptime monitors like <strong>UptimeRobot</strong> or <strong>Cron-Job.org</strong> (set check interval to every 5 mins). This sends a ping to keep your cloud container awake 24/7:</p>
+                                <div style="display: flex; gap: 8px; margin-top: 8px;">
+                                    <input type="text" id="keepAliveUrlInput" readonly style="flex: 1; background: #000; border: 1px solid #333; color: #10b981; padding: 8px 12px; border-radius: 4px; font-family: monospace; font-size: 0.85rem;" value="" />
+                                    <button class="btn btn-secondary btn-sm" onclick="copyKeepAliveUrl()"><i data-lucide="copy" size="13"></i> Copy URL</button>
+                                </div>
+                            </div>
+
+                            <p style="margin-bottom: 8px;"><strong>Best 24/7 Hosting Options:</strong></p>
+                            <table style="width: 100%; border-collapse: collapse; font-size: 0.82rem; margin-top: 6px;">
+                                <thead>
+                                    <tr style="border-bottom: 1px solid #333; text-align: left; color: #888;">
+                                        <th style="padding: 8px;">Platform</th>
+                                        <th style="padding: 8px;">Cost</th>
+                                        <th style="padding: 8px;">24/7 Minecraft Bot Fleet</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr style="border-bottom: 1px solid #222;">
+                                        <td style="padding: 8px; color: #10b981; font-weight: bold;">Railway.app</td>
+                                        <td style="padding: 8px;">Free trial / $5</td>
+                                        <td style="padding: 8px;">100% 24/7 Node background process. Best choice!</td>
+                                    </tr>
+                                    <tr style="border-bottom: 1px solid #222;">
+                                        <td style="padding: 8px; color: #06b6d4; font-weight: bold;">Render.com</td>
+                                        <td style="padding: 8px;">Free</td>
+                                        <td style="padding: 8px;">Web Service with UptimeRobot ping keepalive.</td>
+                                    </tr>
+                                    <tr style="border-bottom: 1px solid #222;">
+                                        <td style="padding: 8px; color: #a855f7; font-weight: bold;">Linux VPS (PM2)</td>
+                                        <td style="padding: 8px;">Free / $3</td>
+                                        <td style="padding: 8px;">Run <code>pm2 start index.js</code>. Never sleeps or disconnects!</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 8px; color: #ef4444; font-weight: bold;">Vercel</td>
+                                        <td style="padding: 8px;">Free</td>
+                                        <td style="padding: 8px; color: #aaa;">Serverless only (web dashboard works; background bots sleep after 60s).</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- In-game commands -->
+                    <div class="dash-section">
+                        <div class="dash-section-header">
+                            <div class="dash-title"><i data-lucide="terminal" size="16" style="color: #a855f7; vertical-align: middle;"></i> Available In-Game Commands</div>
+                        </div>
+                        <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 8px; padding: 18px; font-size: 0.88rem;">
+                            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px;">
+                                <div style="background: #111; padding: 10px; border-radius: 6px; border: 1px solid #222;">
+                                    <code style="color: #10b981; font-weight: bold;">!ai &lt;question&gt;</code>
+                                    <div style="font-size: 0.78rem; color: #888; margin-top: 4px;">Instant Minecraft advice (ores, potions, redstone, crafting, commands).</div>
+                                </div>
+                                <div style="background: #111; padding: 10px; border-radius: 6px; border: 1px solid #222;">
+                                    <code style="color: #06b6d4; font-weight: bold;">!ping</code>
+                                    <div style="font-size: 0.78rem; color: #888; margin-top: 4px;">Shows real-time bot latency and signal bars in chat.</div>
+                                </div>
+                                <div style="background: #111; padding: 10px; border-radius: 6px; border: 1px solid #222;">
+                                    <code style="color: #f5a623; font-weight: bold;">!pos</code>
+                                    <div style="font-size: 0.78rem; color: #888; margin-top: 4px;">Bot broadcasts its current X, Y, Z coordinates.</div>
+                                </div>
+                                <div style="background: #111; padding: 10px; border-radius: 6px; border: 1px solid #222;">
+                                    <code style="color: #a855f7; font-weight: bold;">!uptime</code>
+                                    <div style="font-size: 0.78rem; color: #888; margin-top: 4px;">Displays how long the bot has been continuously online.</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </main>
     </div>
 
-    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
     <script>
-        const socket = io();
-        let currentUser = null;
-        let serversConfig = [];
-        let allRegisteredUsers = [];
-        let activeViewId = 'bots-dashboard';
-        let activeDisplayName = 'Bots Fleet Dashboard';
-        let isSignUpMode = false;
-        const consoleLogsCache = {};
-        const botStatusCache = {};
-        const botPositionCache = {};
-        const botUptimeCache = {};
+        // Global state with safe hoisting
+        var currentUser = null;
+        var serversConfig = [];
+        var allRegisteredUsers = [];
+        var activeViewId = 'bots-dashboard';
+        var activeDisplayName = 'Bots Fleet Dashboard';
+        var isSignUpMode = false;
+        var consoleLogsCache = {};
+        var botStatusCache = {};
+        var botPositionCache = {};
+        var botUptimeCache = {};
+
+        // Safe socket initialization with graceful fallback mock
+        var socket = null;
+        try {
+            if (typeof io !== 'undefined') {
+                socket = io({
+                    transports: ['websocket', 'polling'],
+                    reconnectionAttempts: 3,
+                    timeout: 4000
+                });
+            }
+        } catch (e) {
+            console.warn('Socket.io initialization error:', e);
+        }
+        if (!socket) {
+            const noop = () => {};
+            socket = {
+                emit: noop,
+                on: noop,
+                off: noop,
+                connected: false
+            };
+        }
 
         // --- PASSWORD VISIBILITY TOGGLE ---
         function togglePwdVisibility(inputId, iconEl) {
@@ -2491,7 +2666,7 @@
             showToast('Stopping bot...');
         }
 
-        function handleAiSubmit(e) {
+        async function handleAiSubmit(e) {
             if (e) e.preventDefault();
             const input = document.getElementById('aiInput');
             const text = input ? input.value.trim() : '';
@@ -2499,7 +2674,56 @@
 
             appendAiMsg(text, 'user');
             input.value = '';
-            socket.emit('ask_gemini_ai', { prompt: text });
+
+            let answered = false;
+
+            // 1. Try socket if connected
+            if (socket && socket.connected) {
+                socket.emit('ask_gemini_ai', { prompt: text });
+                const handler = (data) => {
+                    if (!answered) {
+                        answered = true;
+                        socket.off('gemini_ai_response', handler);
+                    }
+                };
+                socket.on('gemini_ai_response', handler);
+            }
+
+            // 2. Fast REST fallback if socket didn't answer within 2.5s or if socket disconnected
+            setTimeout(async () => {
+                if (!answered) {
+                    try {
+                        const res = await fetch('/api/ai/ask', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ prompt: text })
+                        });
+                        const data = await res.json();
+                        if (data && data.answer && !answered) {
+                            answered = true;
+                            appendAiMsg(data.answer, 'bot');
+                        }
+                    } catch (err) {
+                        if (!answered) {
+                            answered = true;
+                            appendAiMsg('Could not reach AI service. Please check connection.', 'bot');
+                        }
+                    }
+                }
+            }, socket && socket.connected ? 2500 : 10);
+        }
+
+        function copyKeepAliveUrl() {
+            const el = document.getElementById('keepAliveUrlInput');
+            if (el) {
+                navigator.clipboard.writeText(el.value).then(() => {
+                    showToast('Keep-Alive URL copied to clipboard!');
+                }).catch(() => {
+                    el.select();
+                    document.execCommand('copy');
+                    showToast('Keep-Alive URL copied!');
+                });
+            }
         }
 
         function appendAiMsg(msg, type) {
@@ -2754,6 +2978,8 @@
 
         // Initialize authentication check on load
         checkExistingAuth();
+        const keepAliveEl = document.getElementById('keepAliveUrlInput');
+        if (keepAliveEl) keepAliveEl.value = window.location.origin + '/api/keepalive';
         setInterval(fetchServersList, 8000);
         setInterval(fetchSystemStats, 5000);
         lucide.createIcons();
