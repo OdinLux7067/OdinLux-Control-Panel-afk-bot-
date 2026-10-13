@@ -30,13 +30,13 @@
   {
     "id": "server_3",
     "name": "THEE LOBBY 3.0",
-    "host": "163.5.201.11",
+    "host": "nexussmp07.mcsh.io",
     "port": 12448,
-    "username": "THEELOBBYhosting",
+    "username": "Nexus",
     "password": null,
     "version": "auto",
-    "connectIp": "163.5.201.11:12448",
-    "description": "THEE LOBBY 3.0 server is online and ready for players.",
+    "connectIp": "nexussmp07.mcsh.io:12448",
+    "description": "",
     "ownerUsername": "Odin Lux",
     "allowedUsers": [],
     "autoStart": false
@@ -54,5 +54,19 @@
     "autoStart": false,
     "ownerUsername": "Odin Lux",
     "allowedUsers": []
+  },
+  {
+    "id": "server_1791909986465",
+    "name": "Server 5",
+    "host": "nexussmp07.mcsh.io",
+    "port": 25565,
+    "username": "THEELOBBYhosting",
+    "password": null,
+    "version": "auto",
+    "connectIp": "nexussmp07.mcsh.io:25565",
+    "description": "",
+    "ownerUsername": "Odin Lux",
+    "allowedUsers": [],
+    "autoStart": false
   }
 ]

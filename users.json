@@ -14,5 +14,13 @@
     "passwordHash": "1dfea068a865a8ab325ab07a355bb0f8fe492755594851813662db6857fc3808",
     "role": "user",
     "createdAt": "2026-09-27T20:05:07.243Z"
+  },
+  {
+    "id": "user_1791911779513",
+    "username": "siyuzi",
+    "email": "gta5654@gmail.com",
+    "passwordHash": "7510c44419c115b1bb2b4248733e9637356187e361023b0489505f254672fadc",
+    "role": "user",
+    "createdAt": "2026-10-13T17:16:19.513Z"
   }
 ]

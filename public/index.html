@@ -531,10 +531,59 @@
             display: inline-block;
         }
 
-        .chat-form-wrapper { position: relative; width: 100%; }
-        .chat-form { display: flex; gap: 8px; width: 100%; }
+        .chat-form-wrapper { position: relative; width: 100%; margin-top: 4px; }
+        .chat-form { display: flex; gap: 8px; width: 100%; align-items: center; }
         .chat-input { flex: 1; background: var(--bg-input); border: 1px solid var(--border); border-radius: 6px; padding: 10px 14px; color: white; font-size: 13px; outline: none; }
-        .chat-input:focus { border-color: var(--border-focus); }
+        .chat-input:focus { border-color: #10b981; }
+
+        /* Console tabs & failed logs styles */
+        .console-tab-btn { transition: all 0.15s ease; border: 1px solid var(--border); }
+        .console-tab-btn.active { background: #262626 !important; border-color: rgba(255, 255, 255, 0.35) !important; color: #fff !important; }
+        .failed-log-card {
+            background: rgba(239, 68, 68, 0.08);
+            border: 1px solid rgba(239, 68, 68, 0.25);
+            border-left: 3px solid #ef4444;
+            border-radius: 6px;
+            padding: 10px 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            font-size: 12px;
+            text-align: left;
+        }
+        .failed-log-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 11px;
+        }
+        .failed-log-badge {
+            background: #ef4444;
+            color: #fff;
+            padding: 2px 7px;
+            border-radius: 4px;
+            font-weight: 700;
+            font-size: 10px;
+            font-family: 'JetBrains Mono', monospace;
+            letter-spacing: 0.5px;
+        }
+        .failed-log-msg {
+            color: #fca5a5;
+            font-family: 'JetBrains Mono', monospace;
+            word-break: break-word;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+        .failed-log-tip {
+            color: var(--text-muted);
+            font-size: 11.5px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-top: 3px;
+            padding-top: 3px;
+            border-top: 1px dashed rgba(239, 68, 68, 0.2);
+        }
 
         .ai-chat-box { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; height: 380px; display: flex; flex-direction: column; overflow: hidden; }
         .ai-messages { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
@@ -1608,6 +1657,7 @@
         var activeDisplayName = 'Bots Fleet Dashboard';
         var isSignUpMode = false;
         var consoleLogsCache = {};
+        var failedLogsCache = {};
         var botStatusCache = {};
         var botPositionCache = {};
         var botUptimeCache = {};
@@ -1618,8 +1668,10 @@
             if (typeof io !== 'undefined') {
                 socket = io({
                     transports: ['websocket', 'polling'],
-                    reconnectionAttempts: 3,
-                    timeout: 4000
+                    reconnectionAttempts: Infinity,
+                    reconnectionDelay: 1000,
+                    reconnectionDelayMax: 5000,
+                    timeout: 10000
                 });
             }
         } catch (e) {
@@ -2445,8 +2497,23 @@
                 const sid = targetViewId.replace('server-', '');
                 if (window.socket && window.socket.connected) {
                     window.socket.emit('request_server_logs', { serverId: sid });
+                    window.socket.emit('request_failed_logs', { serverId: sid });
                     window.socket.emit('get_players', { serverId: sid });
                 }
+                const targetConsole = document.getElementById('console-' + sid);
+                if (targetConsole && consoleLogsCache[sid] && targetConsole.children.length === 0) {
+                    const frag = document.createDocumentFragment();
+                    consoleLogsCache[sid].forEach(msg => {
+                        const line = document.createElement('div');
+                        line.className = 'log-line';
+                        formatLogLineStyle(line, msg);
+                        line.textContent = msg;
+                        frag.appendChild(line);
+                    });
+                    targetConsole.appendChild(frag);
+                    targetConsole.scrollTop = targetConsole.scrollHeight;
+                }
+                renderFailedLogs(sid);
             }
         }
 
@@ -2687,15 +2754,34 @@
                         </div>
 
                         <div class="console-wrapper">
-                            <div class="console-header">
-                                <span style="display: flex; align-items: center; gap: 6px;"><i data-lucide="terminal" size="13" style="color: var(--text-muted);"></i> Console Logs</span>
-                                <div class="console-actions">
+                            <div class="console-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-bottom: 8px;">
+                                <div style="display: flex; gap: 8px; align-items: center;">
+                                    <button class="btn btn-secondary btn-sm console-tab-btn active" id="tabBtnConsole-${s.id}" onclick="switchConsoleTab('${s.id}', 'normal')" style="padding: 4px 11px; font-size: 12px; font-weight: 600;">
+                                        <i data-lucide="terminal" size="12"></i> Console Logs
+                                    </button>
+                                    <button class="btn btn-secondary btn-sm console-tab-btn" id="tabBtnFailed-${s.id}" onclick="switchConsoleTab('${s.id}', 'failed')" style="padding: 4px 11px; font-size: 12px; font-weight: 600; gap: 6px;">
+                                        <i data-lucide="alert-triangle" size="12" style="color: #ef4444;"></i> Failed Logs
+                                        <span class="failed-count-badge" id="badgeFailedCount-${s.id}" style="display: none; background: #ef4444; color: white; border-radius: 999px; padding: 1px 6px; font-size: 10px; font-weight: 700;">0</span>
+                                    </button>
+                                </div>
+                                <div class="console-actions" id="consoleActionsNormal-${s.id}">
                                     <button class="btn btn-secondary btn-sm" onclick="copyConsoleLogs('${s.id}')" title="Copy console logs"><i data-lucide="copy" size="11"></i> Copy</button>
                                     <button class="btn btn-secondary btn-sm" onclick="downloadConsoleLogs('${s.id}')" title="Download console logs as .txt file"><i data-lucide="download" size="11"></i> Download Logs</button>
                                     <button class="btn btn-secondary btn-sm" onclick="clearConsoleLogs('${s.id}')" title="Clear console output"><i data-lucide="trash-2" size="11"></i> Clear</button>
                                 </div>
+                                <div class="console-actions" id="consoleActionsFailed-${s.id}" style="display: none;">
+                                    <button class="btn btn-secondary btn-sm" onclick="clearFailedLogs('${s.id}')" title="Clear failed logs history"><i data-lucide="trash-2" size="11"></i> Clear Failed Logs</button>
+                                    <button class="btn btn-success btn-sm" onclick="startBot('${s.id}')" title="Retry bot launch"><i data-lucide="rotate-cw" size="11"></i> Retry Start</button>
+                                </div>
                             </div>
                             <div id="console-${s.id}" class="console-terminal"></div>
+                            <div id="consoleFailed-${s.id}" class="console-terminal" style="display: none; background: #0c0808; border-color: rgba(239,68,68,0.25);">
+                                <div class="failed-empty-placeholder" id="failedEmpty-${s.id}" style="padding: 30px 16px; text-align: center; color: var(--text-muted); font-size: 13px;">
+                                    <i data-lucide="check-circle" size="24" style="color: #10b981; margin-bottom: 8px; display: block; margin-inline: auto;"></i>
+                                    No connection failures or errors recorded for this bot instance.
+                                </div>
+                                <div id="failedLogsList-${s.id}" class="failed-logs-list" style="display: flex; flex-direction: column; gap: 8px; padding: 6px;"></div>
+                            </div>
                         </div>
 
                         <div class="action-bar">
@@ -2710,9 +2796,9 @@
                         </div>
 
                         <div class="chat-form-wrapper">
-                            <form class="chat-form" onsubmit="handleChatSubmit(event, '${s.id}')">
-                                <input type="text" class="chat-input" id="chatInput-${s.id}" placeholder="Type command or chat message... (e.g. /gamemode spectator or !ai how to find netherite)" required autocomplete="off">
-                                <button type="submit" class="btn btn-success"><i data-lucide="send" size="13"></i> Send</button>
+                            <form class="chat-form" id="chatForm-${s.id}" onsubmit="handleChatSubmit(event, '${s.id}')">
+                                <input type="text" class="chat-input" id="chatInput-${s.id}" placeholder="Type command or chat message... (e.g. hii or /gamemode spectator)" required autocomplete="off">
+                                <button type="submit" class="btn btn-success" id="btnSendChat-${s.id}"><i data-lucide="send" size="13"></i> Send</button>
                             </form>
                         </div>
                     </div>
@@ -2953,16 +3039,131 @@
             showToast('Console logs cleared');
         }
 
-        function handleChatSubmit(e, serverId) {
-            e.preventDefault();
-            const input = document.getElementById('chatInput-' + serverId);
-            if (input && input.value) {
-                socket.emit('send_chat', { serverId: serverId, msg: input.value });
-                input.value = '';
+        function switchConsoleTab(serverId, tabName) {
+            const btnNormal = document.getElementById('tabBtnConsole-' + serverId);
+            const btnFailed = document.getElementById('tabBtnFailed-' + serverId);
+            const actionsNormal = document.getElementById('consoleActionsNormal-' + serverId);
+            const actionsFailed = document.getElementById('consoleActionsFailed-' + serverId);
+            const conNormal = document.getElementById('console-' + serverId);
+            const conFailed = document.getElementById('consoleFailed-' + serverId);
+
+            if (tabName === 'failed') {
+                if (btnNormal) btnNormal.classList.remove('active');
+                if (btnFailed) btnFailed.classList.add('active');
+                if (actionsNormal) actionsNormal.style.display = 'none';
+                if (actionsFailed) actionsFailed.style.display = 'flex';
+                if (conNormal) conNormal.style.display = 'none';
+                if (conFailed) {
+                    conFailed.style.display = 'block';
+                    renderFailedLogs(serverId);
+                }
+            } else {
+                if (btnNormal) btnNormal.classList.add('active');
+                if (btnFailed) btnFailed.classList.remove('active');
+                if (actionsNormal) actionsNormal.style.display = 'flex';
+                if (actionsFailed) actionsFailed.style.display = 'none';
+                if (conNormal) conNormal.style.display = 'block';
+                if (conFailed) conFailed.style.display = 'none';
             }
         }
 
-        function sendCmd(serverId, cmd) { socket.emit('send_chat', { serverId: serverId, msg: cmd }); }
+        function renderFailedLogs(serverId) {
+            const listEl = document.getElementById('failedLogsList-' + serverId);
+            const emptyEl = document.getElementById('failedEmpty-' + serverId);
+            const badgeEl = document.getElementById('badgeFailedCount-' + serverId);
+            const logs = failedLogsCache[serverId] || [];
+
+            if (badgeEl) {
+                if (logs.length > 0) {
+                    badgeEl.textContent = logs.length;
+                    badgeEl.style.display = 'inline-block';
+                } else {
+                    badgeEl.style.display = 'none';
+                }
+            }
+
+            if (!listEl) return;
+            if (logs.length === 0) {
+                if (emptyEl) emptyEl.style.display = 'block';
+                listEl.innerHTML = '';
+                return;
+            }
+
+            if (emptyEl) emptyEl.style.display = 'none';
+            listEl.innerHTML = logs.slice().reverse().map(entry => `
+                <div class="failed-log-card">
+                    <div class="failed-log-header">
+                        <span class="failed-log-badge">[${escapeHtml(entry.eventType || 'FAILURE')}]</span>
+                        <span style="color: var(--text-muted); font-size: 11px;">${escapeHtml(entry.timestamp || '')}</span>
+                    </div>
+                    <div class="failed-log-msg">${escapeHtml(entry.message || 'Connection failure')}</div>
+                    ${entry.resolutionTip ? `<div class="failed-log-tip"><i data-lucide="info" size="12" style="color: #60a5fa;"></i> <span><strong>Solution:</strong> ${escapeHtml(entry.resolutionTip)}</span></div>` : ''}
+                </div>
+            `).join('');
+            lucide.createIcons();
+        }
+
+        async function clearFailedLogs(serverId) {
+            failedLogsCache[serverId] = [];
+            renderFailedLogs(serverId);
+            if (socket && socket.connected) {
+                socket.emit('clear_failed_logs', { serverId });
+            }
+            const token = localStorage.getItem('odinlux_token');
+            if (token) {
+                try {
+                    await fetch(`/api/servers/${serverId}/failed-logs`, {
+                        method: 'DELETE',
+                        headers: { 'Authorization': 'Bearer ' + token }
+                    });
+                } catch(e) {}
+            }
+            showToast('Failed logs cleared');
+        }
+
+        async function handleChatSubmit(e, serverId) {
+            e.preventDefault();
+            const input = document.getElementById('chatInput-' + serverId);
+            if (!input || !input.value.trim()) return;
+            const msg = input.value.trim();
+            input.value = '';
+
+            // Emit immediately through socket
+            if (socket && socket.connected) {
+                socket.emit('send_chat', { serverId, msg });
+            }
+
+            // Also call REST endpoint for guaranteed delivery
+            const token = localStorage.getItem('odinlux_token');
+            if (token) {
+                try {
+                    await fetch(`/api/servers/${serverId}/chat`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': 'Bearer ' + token
+                        },
+                        body: JSON.stringify({ msg })
+                    });
+                } catch (err) {
+                    console.warn('Chat send REST fallback error:', err);
+                }
+            }
+        }
+
+        function sendCmd(serverId, cmd) {
+            if (socket && socket.connected) {
+                socket.emit('send_chat', { serverId: serverId, msg: cmd });
+            }
+            const token = localStorage.getItem('odinlux_token');
+            if (token) {
+                fetch(`/api/servers/${serverId}/chat`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+                    body: JSON.stringify({ msg: cmd })
+                }).catch(() => {});
+            }
+        }
         
         function fetchPlayers(serverId) { 
             socket.emit('get_players', { serverId: serverId });
@@ -2973,10 +3174,12 @@
         async function handleRefreshFleet() {
             const btn = document.getElementById('btnRefreshFleet');
             const icon = document.getElementById('iconRefreshFleet');
-            if (btn) btn.style.pointerEvents = 'none';
+            if (btn) btn.disabled = true;
             if (icon) icon.classList.add('spin-animation');
             const token = localStorage.getItem('odinlux_token');
-            socket.emit('refresh_fleet');
+            if (socket && socket.connected) {
+                socket.emit('refresh_fleet');
+            }
             try {
                 const [serversRes, statsRes] = await Promise.all([
                     fetch('/api/servers', { headers: { 'Authorization': 'Bearer ' + token } }),
@@ -2984,7 +3187,7 @@
                 ]);
                 const data = await serversRes.json();
                 const stats = await statsRes.json();
-                if (data.success && data.servers) {
+                if (data && data.success && Array.isArray(data.servers)) {
                     serversConfig = data.servers;
                     if (data.statuses) Object.assign(botStatusCache, data.statuses);
                     if (data.uptimes) Object.assign(botUptimeCache, data.uptimes);
@@ -3433,6 +3636,25 @@
             }
         });
 
+        socket.on('failed_log', (data) => {
+            if (!data || !data.serverId || !data.entry) return;
+            if (!failedLogsCache[data.serverId]) failedLogsCache[data.serverId] = [];
+            failedLogsCache[data.serverId].push(data.entry);
+            renderFailedLogs(data.serverId);
+        });
+
+        socket.on('failed_logs_history', (data) => {
+            if (!data || !data.serverId || !Array.isArray(data.failedLogs)) return;
+            failedLogsCache[data.serverId] = data.failedLogs;
+            renderFailedLogs(data.serverId);
+        });
+
+        socket.on('failed_logs_cleared', (data) => {
+            if (!data || !data.serverId) return;
+            failedLogsCache[data.serverId] = [];
+            renderFailedLogs(data.serverId);
+        });
+
         socket.on('player_list', (data) => {
             const plist = document.getElementById('plist-' + data.serverId);
             const pcount = document.getElementById('pcount-' + data.serverId);
@@ -3448,7 +3670,6 @@
                 }
             }
         });
-
         socket.on('smp_info_update', (data) => {
             const st = document.getElementById('smp-status-' + data.serverId);
             const pl = document.getElementById('smp-players-' + data.serverId);
@@ -3469,14 +3690,10 @@
         lucide.createIcons();
     </script>
 
-    <!-- FLOATING SPATIAL ACTION BUTTONS -->
+    <!-- FLOATING ACTION BUTTONS (NO OVERLAP WITH CHAT) -->
     <div class="spatial-fab-container">
         <button id="btnScrollToTop" class="spatial-fab" title="Scroll to top">
             <i data-lucide="chevron-up" size="18"></i>
-        </button>
-        <button class="spatial-fab studio-fab" onclick="SpatialStudio.openModal()" title="Customize 3D Spatial Effects, Glassmorphism, Theme & Animations">
-            <i data-lucide="sparkles" size="16" style="color: var(--accent);"></i>
-            <span>3D Studio</span>
         </button>
     </div>
 </body>

@@ -400,7 +400,7 @@ async function askGemini(prompt, user) {
 }
 
 // --- MINECRAFT PING ---
-function pingMinecraftServer(host, port, timeout = 1500) {
+function pingMinecraftServer(host, port, timeout = 1200) {
     return new Promise((resolve, reject) => {
         let finished = false;
         const timer = setTimeout(() => {
@@ -1127,6 +1127,57 @@ app.get('/api/servers/:id/logs', (req, res) => {
     res.json({ success: true, serverId, logs });
 });
 
+app.get('/api/servers/:id/failed-logs', (req, res) => {
+    const serverId = req.params.id;
+    const failedLogs = failedLogsBuffer.get(serverId) || [];
+    res.json({ success: true, serverId, failedLogs });
+});
+
+app.delete('/api/servers/:id/failed-logs', (req, res) => {
+    const serverId = req.params.id;
+    failedLogsBuffer.set(serverId, []);
+    io.emit('failed_logs_cleared', { serverId });
+    res.json({ success: true, message: 'Failed logs cleared successfully.' });
+});
+
+app.post('/api/servers/:id/chat', (req, res) => {
+    const authHeader = req.headers.authorization;
+    const token = authHeader ? authHeader.replace(/^Bearer\s+/i, '') : null;
+    const user = getUserByToken(token);
+    if (!user) return res.status(401).json({ success: false, message: 'Unauthorized' });
+
+    const serverId = req.params.id;
+    if (!canAccessServer(user, serverId)) {
+        return res.status(403).json({ success: false, message: 'Permission denied.' });
+    }
+
+    const { msg } = req.body;
+    if (!msg || typeof msg !== 'string' || !msg.trim()) {
+        return res.status(400).json({ success: false, message: 'Message cannot be empty.' });
+    }
+
+    const cleanMsg = msg.trim();
+    const bot = activeBots[serverId];
+    if (bot && (bot.entity || (bot._client && !bot._client.ended))) {
+        try {
+            if (typeof bot.chat === 'function') {
+                bot.chat(cleanMsg);
+            } else if (bot._client && typeof bot._client.chat === 'function') {
+                bot._client.chat(cleanMsg);
+            }
+            logAndEmit(serverId, `[CHAT SENT by ${user.username}]: ${cleanMsg}`);
+            return res.json({ success: true, message: 'Chat sent successfully.' });
+        } catch (err) {
+            logAndEmit(serverId, `[CHAT ERROR]: ${err.message}`);
+            logFailedEvent(serverId, 'CHAT_ERROR', err.message, 'Verify bot has permission to chat on this server.');
+            return res.status(500).json({ success: false, message: err.message });
+        }
+    } else {
+        logAndEmit(serverId, `[CANNOT SEND]: Bot is not connected to the server.`);
+        return res.status(400).json({ success: false, message: 'Bot is offline.' });
+    }
+});
+
 // --- AI QUERY REST ENDPOINT ---
 app.post('/api/ai/ask', async (req, res) => {
     const prompt = req.body && req.body.prompt;
@@ -1162,6 +1213,7 @@ const afkTimers = {};
 // Active locks map: key `${host.toLowerCase()}:${port}:${username.toLowerCase()}` -> serverId
 const activeHostLocks = new Map();
 const serverLogsBuffer = new Map(); // serverId -> Array<string> (retained for reconnects/reloads)
+const failedLogsBuffer = new Map(); // serverId -> Array<{ id, timestamp, eventType, message, resolutionTip, time }>
 
 function setBotStatus(serverId, text, color) {
     botStatuses[serverId] = { text, color };
@@ -1181,6 +1233,27 @@ function logAndEmit(serverId, msg) {
     if (buf.length > 500) buf.shift();
 
     io.emit('log', { serverId, msg: formatted });
+}
+
+function logFailedEvent(serverId, eventType, message, resolutionTip) {
+    const timestamp = new Date().toLocaleTimeString();
+    const entry = {
+        id: `fail_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+        timestamp,
+        eventType,
+        message,
+        resolutionTip: resolutionTip || 'Verify Minecraft server connection settings, port, and IP.',
+        time: Date.now()
+    };
+    if (!failedLogsBuffer.has(serverId)) {
+        failedLogsBuffer.set(serverId, []);
+    }
+    const buf = failedLogsBuffer.get(serverId);
+    buf.push(entry);
+    if (buf.length > 100) buf.shift();
+
+    io.emit('failed_log', { serverId, entry });
+    return entry;
 }
 
 function getPlayersArray(serverId) {
@@ -1232,7 +1305,7 @@ function emitServersListToAll() {
 async function updateSMPInfo(config) {
     try {
         const startTime = Date.now();
-        const res = await pingMinecraftServer(config.host, config.port, 4000);
+        const res = await pingMinecraftServer(config.host, config.port, 1200);
         const latency = res && typeof res.latency === 'number' ? res.latency : Date.now() - startTime;
         let vName = res && res.version && res.version.name ? res.version.name : 'Java Edition';
         if (res && res.version && res.version.protocol === 0) {
@@ -1355,6 +1428,7 @@ function startBot(config) {
         activeBots[config.id] = bot;
     } catch (err) {
         logAndEmit(config.id, `[ERROR] Init failed: ${err.message}`);
+        logFailedEvent(config.id, 'INIT_ERROR', err.message, 'Verify server port and Minecraft version configuration in Settings.');
         setBotStatus(config.id, 'OFFLINE', '#e00000');
         if (activeHostLocks.get(lockKey) === config.id) activeHostLocks.delete(lockKey);
         return;
@@ -1392,67 +1466,63 @@ function startBot(config) {
                 saveServersConfig();
             }
             logAndEmit(config.id, `[NETWORK] ${errMsg}`);
+            logFailedEvent(config.id, 'ECONNRESET', errMsg, 'Server dropped TCP socket. Wait for server reboot or check server crash logs.');
             isHandled = true;
         } else if (errMsg.includes('Unsupported protocol version') || errMsg.includes("protocol version '0'")) {
             errMsg = 'Server returned protocol 0 (hibernating proxy). Auto-switching to Minecraft 1.21.4...';
             config.version = '1.21.4';
             saveServersConfig();
             logAndEmit(config.id, `[PROTOCOL] ${errMsg}`);
+            logFailedEvent(config.id, 'PROTOCOL_0', errMsg, 'Server proxy is asleep/hibernating. Target protocol set to Minecraft 1.21.4.');
             isHandled = true;
         } else if (errMsg.includes('ENOTFOUND')) {
+            connectionFailed = true;
+            autoReconnect[config.id] = false;
             errMsg = `Host "${config.host}" cannot be resolved (domain not found in DNS). Host may be offline or misconfigured.`;
-            reconnectAttempts[config.id] = (reconnectAttempts[config.id] || 0) + 1;
-            if (reconnectAttempts[config.id] >= 2) {
-                logAndEmit(config.id, `[NETWORK] ${errMsg}`);
-                logAndEmit(config.id, `[CONTROL] Auto-reconnect suspended: "${config.host}" does not exist in DNS. Please edit server settings with a reachable hostname or IP.`);
-                setBotStatus(config.id, 'DNS_ERROR', '#e00000');
-                if (reconnectTimers[config.id]) {
-                    clearTimeout(reconnectTimers[config.id]);
-                    delete reconnectTimers[config.id];
-                }
-                return;
-            }
             logAndEmit(config.id, `[NETWORK] ${errMsg}`);
-            isHandled = true;
+            logAndEmit(config.id, `[CONTROL] Connection stopped: "${config.host}" does not exist in DNS. Please edit server settings with a reachable hostname or IP.`);
+            logFailedEvent(config.id, 'DNS_ERROR', errMsg, `Cannot resolve "${config.host}". Verify domain spelling or enter direct numeric IP in Server Settings.`);
+            setBotStatus(config.id, 'DNS_ERROR', '#e00000');
+            if (reconnectTimers[config.id]) {
+                clearTimeout(reconnectTimers[config.id]);
+                delete reconnectTimers[config.id];
+            }
+            return;
         } else if (errMsg.includes('ECONNREFUSED')) {
+            connectionFailed = true;
+            autoReconnect[config.id] = false;
             errMsg = `Target Minecraft server at ${config.host}:${config.port} is currently offline (Connection refused).`;
-            reconnectAttempts[config.id] = (reconnectAttempts[config.id] || 0) + 1;
-            if (reconnectAttempts[config.id] >= 2) {
-                logAndEmit(config.id, `[NETWORK] ${errMsg}`);
-                logAndEmit(config.id, `[STANDBY] Server appears to be offline. Auto-reconnect paused to conserve bandwidth. Click "Start Bot" when server is back online.`);
-                setBotStatus(config.id, 'OFFLINE', '#e00000');
-                if (reconnectTimers[config.id]) {
-                    clearTimeout(reconnectTimers[config.id]);
-                    delete reconnectTimers[config.id];
-                }
-                return;
-            }
-            logAndEmit(config.id, `[NETWORK] ${errMsg} Waiting for server to come online...`);
-            isHandled = true;
-        } else if (errMsg.includes('ETIMEDOUT') || errMsg.includes('timed out')) {
-            errMsg = `Connection to ${config.host}:${config.port} timed out. Server may be lagging or rebooting.`;
-            reconnectAttempts[config.id] = (reconnectAttempts[config.id] || 0) + 1;
-            if (reconnectAttempts[config.id] >= 3) {
-                logAndEmit(config.id, `[NETWORK] ${errMsg}`);
-                logAndEmit(config.id, `[STANDBY] Server timed out after multiple attempts. Pausing auto-reconnect until manual restart.`);
-                setBotStatus(config.id, 'OFFLINE', '#e00000');
-                if (reconnectTimers[config.id]) {
-                    clearTimeout(reconnectTimers[config.id]);
-                    delete reconnectTimers[config.id];
-                }
-                return;
-            }
             logAndEmit(config.id, `[NETWORK] ${errMsg}`);
-            isHandled = true;
+            logAndEmit(config.id, `[STANDBY] Server port is closed or server is stopped. Click "Start" when server is back online.`);
+            logFailedEvent(config.id, 'ECONNREFUSED', errMsg, `Port ${config.port} on ${config.host} refused connection. Ensure your Minecraft server is turned on and port-forwarded.`);
+            setBotStatus(config.id, 'OFFLINE', '#e00000');
+            if (reconnectTimers[config.id]) {
+                clearTimeout(reconnectTimers[config.id]);
+                delete reconnectTimers[config.id];
+            }
+            return;
+        } else if (errMsg.includes('ETIMEDOUT') || errMsg.includes('timed out')) {
+            connectionFailed = true;
+            autoReconnect[config.id] = false;
+            errMsg = `Connection to ${config.host}:${config.port} timed out. Server may be lagging or rebooting.`;
+            logAndEmit(config.id, `[NETWORK] ${errMsg}`);
+            logAndEmit(config.id, `[STANDBY] Server timed out. Click "Start" to retry when server is responsive.`);
+            logFailedEvent(config.id, 'ETIMEDOUT', errMsg, 'Connection timed out. Check firewall, server latency, or DDoS protection.');
+            setBotStatus(config.id, 'OFFLINE', '#e00000');
+            if (reconnectTimers[config.id]) {
+                clearTimeout(reconnectTimers[config.id]);
+                delete reconnectTimers[config.id];
+            }
+            return;
         }
 
         if (!isHandled) {
             logAndEmit(config.id, `[NETWORK] ${errMsg}`);
+            logFailedEvent(config.id, 'SOCKET_ERROR', errMsg, 'Unexpected socket error occurred during Minecraft handshake.');
         }
 
-        if (autoReconnect[config.id] !== false && !hasEnded) {
+        if (!connectionFailed && autoReconnect[config.id] !== false && !hasEnded) {
             setBotStatus(config.id, 'RECONNECTING', '#f5a623');
-            // If connection timed out or failed before 'end' event, schedule safe auto-reconnect
             if (!reconnectTimers[config.id]) {
                 const delayMs = Math.min(25000, Math.max(5000, ((reconnectAttempts[config.id] || 0) + 1) * 5000));
                 reconnectTimers[config.id] = setTimeout(() => {
@@ -1718,15 +1788,24 @@ function startBot(config) {
 
         if (lower.includes('whitelist')) {
             wasKickedWhitelist = true;
+            connectionFailed = true;
             autoReconnect[config.id] = false;
             setBotStatus(config.id, 'WHITELISTED', '#f5a623');
             logAndEmit(config.id, `[WHITELIST] Server whitelist is active. To allow the bot to join, run on server console: /whitelist add ${validUsername}`);
         } else if (lower.includes('duplicate_login') || lower.includes('another location') || lower.includes('already connected') || lower.includes('already logged in') || lower.includes('another device')) {
             wasConflict = true;
+            connectionFailed = true;
             autoReconnect[config.id] = false;
             setBotStatus(config.id, 'STANDBY', '#888888');
             logAndEmit(config.id, `[SESSION CONFLICT] Another player/session is actively using username "${validUsername}". Bot is standing by so you can play without disconnection. Click "Start" when you are done playing.`);
         }
+
+        const tip = wasKickedWhitelist
+            ? `Run "/whitelist add ${validUsername}" on the Minecraft server console to allow bot to join.`
+            : (wasConflict
+                ? `Username "${validUsername}" is already connected to the server. Change bot username in Instance Settings.`
+                : 'Server kicked the bot. Check kick message above.');
+        logFailedEvent(config.id, wasKickedWhitelist ? 'WHITELIST' : (wasConflict ? 'CONFLICT' : 'KICKED'), formatted, tip);
     });
 
     bot.on('end', (reason) => {
@@ -1747,6 +1826,11 @@ function startBot(config) {
         }
 
         logAndEmit(config.id, `[DISCONNECTED] (${reason || 'Connection closed'}).`);
+
+        if (connectionFailed) {
+            setBotStatus(config.id, 'OFFLINE', '#e00000');
+            return;
+        }
 
         if (wasKickedWhitelist) {
             setBotStatus(config.id, 'WHITELISTED', '#f5a623');
@@ -1835,6 +1919,10 @@ io.on('connection', (socket) => {
                 if (history.length > 0) {
                     socket.emit('logs_history', { serverId: s.id, logs: history });
                 }
+                const failedHistory = failedLogsBuffer.get(s.id) || [];
+                if (failedHistory.length > 0) {
+                    socket.emit('failed_logs_history', { serverId: s.id, failedLogs: failedHistory });
+                }
             });
         } else {
             socket.emit('auth_error', { message: 'Session expired. Please log in again.' });
@@ -1847,7 +1935,21 @@ io.on('connection', (socket) => {
         socket.emit('logs_history', { serverId: data.serverId, logs });
     });
 
+    socket.on('request_failed_logs', (data) => {
+        if (!data || !data.serverId) return;
+        const failedLogs = failedLogsBuffer.get(data.serverId) || [];
+        socket.emit('failed_logs_history', { serverId: data.serverId, failedLogs });
+    });
+
+    socket.on('clear_failed_logs', (data) => {
+        if (!data || !data.serverId) return;
+        if (!canAccessServer(socket.user, data.serverId)) return;
+        failedLogsBuffer.set(data.serverId, []);
+        io.emit('failed_logs_cleared', { serverId: data.serverId });
+    });
+
     socket.on('start_bot', (data) => {
+        if (!data || !data.serverId) return;
         if (!canAccessServer(socket.user, data.serverId)) {
             return socket.emit('log', { serverId: data.serverId, msg: '[DENIED] You do not have permission to start this bot.' });
         }
@@ -1856,6 +1958,7 @@ io.on('connection', (socket) => {
     });
 
     socket.on('stop_bot', (data) => {
+        if (!data || !data.serverId) return;
         if (!canAccessServer(socket.user, data.serverId)) {
             return socket.emit('log', { serverId: data.serverId, msg: '[DENIED] You do not have permission to stop this bot.' });
         }
@@ -1863,15 +1966,30 @@ io.on('connection', (socket) => {
     });
 
     socket.on('send_chat', (data) => {
+        if (!data || !data.serverId) return;
         if (!canAccessServer(socket.user, data.serverId)) {
             return socket.emit('log', { serverId: data.serverId, msg: '[DENIED] You do not have permission to send commands to this server.' });
         }
+        const rawMsg = data.msg;
+        if (!rawMsg || typeof rawMsg !== 'string' || !rawMsg.trim()) return;
+        const msg = rawMsg.trim();
+
         const bot = activeBots[data.serverId];
-        if (bot && bot.entity) {
-            bot.chat(data.msg);
-            logAndEmit(data.serverId, `[SENT by ${socket.user ? socket.user.username : 'User'}]: ${data.msg}`);
+        if (bot && (bot.entity || (bot._client && !bot._client.ended))) {
+            try {
+                if (typeof bot.chat === 'function') {
+                    bot.chat(msg);
+                } else if (bot._client && typeof bot._client.chat === 'function') {
+                    bot._client.chat(msg);
+                }
+                const sender = socket.user ? socket.user.username : 'User';
+                logAndEmit(data.serverId, `[CHAT SENT by ${sender}]: ${msg}`);
+            } catch (err) {
+                logAndEmit(data.serverId, `[CHAT ERROR]: ${err.message}`);
+                logFailedEvent(data.serverId, 'CHAT_ERROR', err.message, 'Verify bot has permission to chat on this server.');
+            }
         } else {
-            logAndEmit(data.serverId, '[ERROR] Bot is offline.');
+            logAndEmit(data.serverId, '[CANNOT SEND] Bot is offline. Start the bot first to chat or send commands.');
         }
     });
 
@@ -1960,9 +2078,9 @@ io.on('connection', (socket) => {
     socket.on('refresh_fleet', async () => {
         if (!socket.user) return;
         const visible = getVisibleServers(socket.user);
-        await Promise.all(visible.map(s => updateSMPInfo(s)));
+        Promise.all(visible.map(s => updateSMPInfo(s))).catch(() => {});
         visible.forEach(s => emitPlayerList(s.id));
-        emitServersListToAll();
+        try { socket.emit('bot_system_stats', calculateSystemStats()); } catch(e) {}
         socket.emit('fleet_refreshed', { count: visible.length });
     });
 
