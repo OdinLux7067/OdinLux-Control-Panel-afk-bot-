@@ -2,6 +2,7 @@ require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
 const http = require('http');
+const https = require('https');
 const crypto = require('crypto');
 const os = require('os');
 const express = require('express');
@@ -399,7 +400,7 @@ async function askGemini(prompt, user) {
 }
 
 // --- MINECRAFT PING ---
-function pingMinecraftServer(host, port, timeout = 4000) {
+function pingMinecraftServer(host, port, timeout = 1500) {
     return new Promise((resolve, reject) => {
         let finished = false;
         const timer = setTimeout(() => {
@@ -435,6 +436,20 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
+
+// Public ingress origin tracker to keep Cloud Run / Web container alive 24/7
+let detectedPublicOrigin = null;
+app.use((req, res, next) => {
+    try {
+        const proto = req.headers['x-forwarded-proto'] || (req.secure ? 'https' : 'http');
+        const host = req.headers['x-forwarded-host'] || req.headers.host;
+        if (host && !host.includes('127.0.0.1') && !host.includes('localhost')) {
+            detectedPublicOrigin = `${proto}://${host}`;
+        }
+    } catch {}
+    next();
+});
+
 app.get('/health', (req, res) => res.status(200).send('OK'));
 
 // --- AUTH API ROUTES ---
@@ -646,7 +661,7 @@ function calculateSystemStats() {
 
     const activeBotIds = Object.keys(activeBots).filter(id => {
         const bot = activeBots[id];
-        return bot && bot.entity;
+        return bot && bot.entity && bot._client && !bot._client.ended;
     });
     const activeBotCount = activeBotIds.length;
     const configuredBotCount = serversConfig.length;
@@ -840,8 +855,25 @@ app.get('/api/servers', (req, res) => {
     const statuses = {};
     const uptimes = {};
     visible.forEach(s => {
-        statuses[s.id] = botStatuses[s.id] || { text: 'STANDBY', color: '#888888' };
-        uptimes[s.id] = botUptimeStarts[s.id] || null;
+        const bot = activeBots[s.id];
+        const isTrulyOnline = !!(bot && bot.entity && bot._client && !bot._client.ended);
+        if (isTrulyOnline) {
+            statuses[s.id] = { text: 'ONLINE', color: '#0070f3' };
+            uptimes[s.id] = botUptimeStarts[s.id] || Date.now();
+        } else if (botStatuses[s.id] && botStatuses[s.id].text === 'Connecting...') {
+            statuses[s.id] = { text: 'Connecting...', color: '#f5a623' };
+            uptimes[s.id] = null;
+        } else if (botStatuses[s.id] && botStatuses[s.id].text === 'RECONNECTING') {
+            statuses[s.id] = { text: 'RECONNECTING', color: '#f5a623' };
+            uptimes[s.id] = null;
+        } else if (botStatuses[s.id] && (botStatuses[s.id].text === 'IN USE' || botStatuses[s.id].text === 'WHITELISTED' || botStatuses[s.id].text === 'DNS_ERROR' || botStatuses[s.id].text === 'OFFLINE')) {
+            statuses[s.id] = botStatuses[s.id];
+            uptimes[s.id] = null;
+        } else {
+            statuses[s.id] = { text: 'STANDBY', color: '#888888' };
+            botStatuses[s.id] = statuses[s.id];
+            uptimes[s.id] = null;
+        }
     });
 
     res.json({ success: true, servers: visible, statuses, uptimes });
@@ -1064,14 +1096,35 @@ app.post('/api/servers/refresh-all', async (req, res) => {
 
 // --- KEEPALIVE & 24/7 UPTIME MONITOR ENDPOINTS ---
 app.get(['/api/keepalive', '/ping', '/healthz'], (req, res) => {
+    try {
+        const proto = req.headers['x-forwarded-proto'] || (req.secure ? 'https' : 'http');
+        const host = req.headers['x-forwarded-host'] || req.headers.host;
+        if (host && !host.includes('127.0.0.1') && !host.includes('localhost')) {
+            detectedPublicOrigin = `${proto}://${host}`;
+        }
+    } catch {}
+
+    const onlineList = Object.keys(activeBots).map(id => {
+        const cfg = serversConfig.find(s => s.id === id);
+        return { id, name: cfg ? cfg.name : id };
+    });
+
     res.json({
         status: 'ok',
         service: 'OdinLux Minecraft AFK Bot & Panel',
         uptimeSeconds: Math.floor(process.uptime()),
         activeBotsCount: Object.keys(activeBots).length,
+        activeBots: onlineList,
         timestamp: Date.now(),
-        keepAlive: 'active'
+        keepAlive: 'active',
+        cloudRunWarm: true
     });
+});
+
+app.get('/api/servers/:id/logs', (req, res) => {
+    const serverId = req.params.id;
+    const logs = serverLogsBuffer.get(serverId) || [];
+    res.json({ success: true, serverId, logs });
 });
 
 // --- AI QUERY REST ENDPOINT ---
@@ -1108,6 +1161,7 @@ const botUptimeStarts = {};
 const afkTimers = {};
 // Active locks map: key `${host.toLowerCase()}:${port}:${username.toLowerCase()}` -> serverId
 const activeHostLocks = new Map();
+const serverLogsBuffer = new Map(); // serverId -> Array<string> (retained for reconnects/reloads)
 
 function setBotStatus(serverId, text, color) {
     botStatuses[serverId] = { text, color };
@@ -1115,14 +1169,55 @@ function setBotStatus(serverId, text, color) {
 }
 
 function logAndEmit(serverId, msg) {
-    console.log(`[${serverId}] ${msg}`);
-    io.emit('log', { serverId, msg });
+    const timestamp = new Date().toLocaleTimeString();
+    const formatted = `[${timestamp}] ${msg}`;
+    console.log(`[${serverId}] ${formatted}`);
+
+    if (!serverLogsBuffer.has(serverId)) {
+        serverLogsBuffer.set(serverId, []);
+    }
+    const buf = serverLogsBuffer.get(serverId);
+    buf.push(formatted);
+    if (buf.length > 500) buf.shift();
+
+    io.emit('log', { serverId, msg: formatted });
+}
+
+function getPlayersArray(serverId) {
+    const bot = activeBots[serverId];
+    if (!bot) return [];
+    const isOnline = !!(bot && (bot.entity || (bot._client && !bot._client.ended)));
+    let players = [];
+    if (bot.players && typeof bot.players === 'object') {
+        for (const [key, p] of Object.entries(bot.players)) {
+            let name = (p && (p.username || p.name)) || key;
+            if (typeof name === 'string') {
+                // Strip Minecraft formatting color codes (§a, §f, etc.)
+                name = name.replace(/§[0-9a-fk-or]/gi, '').trim();
+                // Filter out internal scoreboard or empty entries, allow valid Minecraft & Bedrock/Floodgate names
+                if (name.length >= 1 && name.length <= 32 && !name.startsWith('!')) {
+                    players.push(name);
+                }
+            }
+        }
+    }
+    players = Array.from(new Set(players)).sort();
+
+    // If bot is connected, guarantee that the bot itself appears in the online roster
+    if (isOnline) {
+        const cfg = serversConfig.find(s => s.id === serverId);
+        const myName = sanitizeUsername(bot.username || (cfg && cfg.username) || 'AFK_Steve');
+        if (myName && !players.includes(myName)) {
+            players.unshift(myName);
+        }
+    }
+    return players;
 }
 
 function emitPlayerList(serverId) {
     const bot = activeBots[serverId];
-    const isOnline = !!(bot && bot.entity);
-    const players = (bot && bot.players) ? Object.keys(bot.players) : [];
+    const isOnline = !!(bot && (bot.entity || (bot._client && !bot._client.ended)));
+    const players = getPlayersArray(serverId);
     io.emit('player_list', { serverId, players, isOnline });
 }
 
@@ -1139,13 +1234,17 @@ async function updateSMPInfo(config) {
         const startTime = Date.now();
         const res = await pingMinecraftServer(config.host, config.port, 4000);
         const latency = res && typeof res.latency === 'number' ? res.latency : Date.now() - startTime;
+        let vName = res && res.version && res.version.name ? res.version.name : 'Java Edition';
+        if (res && res.version && res.version.protocol === 0) {
+            vName = config.version && config.version !== 'auto' ? `Paper ${config.version} (Paused)` : 'Paused (Join to start)';
+        }
         const info = {
             serverId: config.id,
             online: true,
             onlinePlayers: res && res.players && typeof res.players.online === 'number' ? res.players.online : 0,
             maxPlayers: res && res.players && typeof res.players.max === 'number' ? res.players.max : 20,
             latency,
-            version: res && res.version && res.version.name ? res.version.name : 'Java Edition'
+            version: vName
         };
         io.emit('smp_info_update', info);
         return true;
@@ -1226,7 +1325,16 @@ function startBot(config) {
         logAndEmit(config.id, `[CONTROL] Note: Adjusted username to "${validUsername}" (Minecraft Java usernames must be 3-16 chars without spaces).`);
     }
 
-    const versionStr = (config.version && config.version !== 'auto') ? config.version : 'auto-detect';
+    let targetVersion = (config.version && config.version !== 'auto') ? config.version : null;
+    if (!targetVersion) {
+        // Smart version detection from server description or name
+        const match = (config.description || '').match(/\b(1\.\d+(\.\d+)?)\b/) || (config.name || '').match(/\b(1\.\d+(\.\d+)?)\b/);
+        if (match) {
+            targetVersion = (match[1] === '1.21' || match[1] === '1.21.0') ? '1.21.4' : match[1];
+        }
+    }
+
+    const versionStr = targetVersion ? targetVersion : 'auto-detect';
     logAndEmit(config.id, `[CONTROL] Connecting to ${config.host}:${config.port} as ${validUsername} (version: ${versionStr})...`);
 
     const botOptions = {
@@ -1237,13 +1345,14 @@ function startBot(config) {
         hideErrors: true
     };
 
-    if (config.version && config.version !== 'auto') {
-        botOptions.version = config.version;
+    if (targetVersion) {
+        botOptions.version = targetVersion;
     }
 
     let bot;
     try {
         bot = mineflayer.createBot(botOptions);
+        activeBots[config.id] = bot;
     } catch (err) {
         logAndEmit(config.id, `[ERROR] Init failed: ${err.message}`);
         setBotStatus(config.id, 'OFFLINE', '#e00000');
@@ -1271,19 +1380,88 @@ function startBot(config) {
     });
 
     let connectionFailed = false;
+    let hasEnded = false;
     bot.on('error', (err) => {
         let errMsg = err.message || 'Connection error';
+        let isHandled = false;
+
         if (errMsg.includes('ECONNRESET')) {
             errMsg = 'Connection reset by server (ECONNRESET). Server may be rebooting or backing up.';
             if (config.version && config.version !== 'auto') {
                 config.version = 'auto';
                 saveServersConfig();
             }
+            logAndEmit(config.id, `[NETWORK] ${errMsg}`);
+            isHandled = true;
+        } else if (errMsg.includes('Unsupported protocol version') || errMsg.includes("protocol version '0'")) {
+            errMsg = 'Server returned protocol 0 (hibernating proxy). Auto-switching to Minecraft 1.21.4...';
+            config.version = '1.21.4';
+            saveServersConfig();
+            logAndEmit(config.id, `[PROTOCOL] ${errMsg}`);
+            isHandled = true;
+        } else if (errMsg.includes('ENOTFOUND')) {
+            errMsg = `Host "${config.host}" cannot be resolved (domain not found in DNS). Host may be offline or misconfigured.`;
+            reconnectAttempts[config.id] = (reconnectAttempts[config.id] || 0) + 1;
+            if (reconnectAttempts[config.id] >= 2) {
+                logAndEmit(config.id, `[NETWORK] ${errMsg}`);
+                logAndEmit(config.id, `[CONTROL] Auto-reconnect suspended: "${config.host}" does not exist in DNS. Please edit server settings with a reachable hostname or IP.`);
+                setBotStatus(config.id, 'DNS_ERROR', '#e00000');
+                if (reconnectTimers[config.id]) {
+                    clearTimeout(reconnectTimers[config.id]);
+                    delete reconnectTimers[config.id];
+                }
+                return;
+            }
+            logAndEmit(config.id, `[NETWORK] ${errMsg}`);
+            isHandled = true;
+        } else if (errMsg.includes('ECONNREFUSED')) {
+            errMsg = `Target Minecraft server at ${config.host}:${config.port} is currently offline (Connection refused).`;
+            reconnectAttempts[config.id] = (reconnectAttempts[config.id] || 0) + 1;
+            if (reconnectAttempts[config.id] >= 2) {
+                logAndEmit(config.id, `[NETWORK] ${errMsg}`);
+                logAndEmit(config.id, `[STANDBY] Server appears to be offline. Auto-reconnect paused to conserve bandwidth. Click "Start Bot" when server is back online.`);
+                setBotStatus(config.id, 'OFFLINE', '#e00000');
+                if (reconnectTimers[config.id]) {
+                    clearTimeout(reconnectTimers[config.id]);
+                    delete reconnectTimers[config.id];
+                }
+                return;
+            }
+            logAndEmit(config.id, `[NETWORK] ${errMsg} Waiting for server to come online...`);
+            isHandled = true;
+        } else if (errMsg.includes('ETIMEDOUT') || errMsg.includes('timed out')) {
+            errMsg = `Connection to ${config.host}:${config.port} timed out. Server may be lagging or rebooting.`;
+            reconnectAttempts[config.id] = (reconnectAttempts[config.id] || 0) + 1;
+            if (reconnectAttempts[config.id] >= 3) {
+                logAndEmit(config.id, `[NETWORK] ${errMsg}`);
+                logAndEmit(config.id, `[STANDBY] Server timed out after multiple attempts. Pausing auto-reconnect until manual restart.`);
+                setBotStatus(config.id, 'OFFLINE', '#e00000');
+                if (reconnectTimers[config.id]) {
+                    clearTimeout(reconnectTimers[config.id]);
+                    delete reconnectTimers[config.id];
+                }
+                return;
+            }
+            logAndEmit(config.id, `[NETWORK] ${errMsg}`);
+            isHandled = true;
         }
-        logAndEmit(config.id, `[SOCKET ERROR] ${errMsg}`);
-        // Do NOT mark permanent OFFLINE if autoReconnect is active; keep reconnecting
-        if (autoReconnect[config.id] !== false) {
+
+        if (!isHandled) {
+            logAndEmit(config.id, `[NETWORK] ${errMsg}`);
+        }
+
+        if (autoReconnect[config.id] !== false && !hasEnded) {
             setBotStatus(config.id, 'RECONNECTING', '#f5a623');
+            // If connection timed out or failed before 'end' event, schedule safe auto-reconnect
+            if (!reconnectTimers[config.id]) {
+                const delayMs = Math.min(25000, Math.max(5000, ((reconnectAttempts[config.id] || 0) + 1) * 5000));
+                reconnectTimers[config.id] = setTimeout(() => {
+                    delete reconnectTimers[config.id];
+                    if (autoReconnect[config.id] !== false && !activeBots[config.id]) {
+                        startBot(serversConfig.find(s => s.id === config.id) || config);
+                    }
+                }, delayMs);
+            }
         }
     });
 
@@ -1300,27 +1478,60 @@ function startBot(config) {
     bot.on('login', () => {
         reconnectAttempts[config.id] = 0;
         connectionFailed = false;
-        logAndEmit(config.id, `Logged in successfully as ${validUsername}!`);
+        logAndEmit(config.id, `[LOGIN] 🔐 Logged into Minecraft server successfully as ${validUsername}!`);
     });
 
     bot.on('spawn', () => {
-        reconnectAttempts[config.id] = 0;
-        connectionFailed = false;
-        setBotStatus(config.id, 'ONLINE', '#0070f3');
-        botUptimeStarts[config.id] = Date.now();
-        io.emit('uptime_update', { serverId: config.id, uptimeStart: botUptimeStarts[config.id] });
-        logAndEmit(config.id, `Spawned in world! 24/7 Keep-Alive Active.`);
+        try {
+            reconnectAttempts[config.id] = 0;
+            connectionFailed = false;
+            setBotStatus(config.id, 'ONLINE', '#0070f3');
+            botUptimeStarts[config.id] = Date.now();
+            io.emit('uptime_update', { serverId: config.id, uptimeStart: botUptimeStarts[config.id] });
 
-        if (config.password) {
+            let dimName = 'Overworld';
+            try {
+                if (bot.game) {
+                    if (typeof bot.game.dimension === 'string') {
+                        dimName = bot.game.dimension.replace(/^minecraft:/, '');
+                    } else if (bot.game.dimension && typeof bot.game.dimension.name === 'string') {
+                        dimName = bot.game.dimension.name.replace(/^minecraft:/, '');
+                    }
+                }
+            } catch {}
+            let gameMode = (bot.game && bot.game.gameMode) ? bot.game.gameMode : 'Survival';
+            let posStr = '';
+            try {
+                if (bot.entity && bot.entity.position && typeof bot.entity.position.x === 'number' && !isNaN(bot.entity.position.x)) {
+                    posStr = `at (X: ${Math.round(bot.entity.position.x)}, Y: ${Math.round(bot.entity.position.y)}, Z: ${Math.round(bot.entity.position.z)})`;
+                }
+            } catch {}
+
+            logAndEmit(config.id, `[WORLD] 🌍 ${validUsername} has joined and spawned into the world! ${posStr} [${dimName} | ${gameMode}]`);
+            logAndEmit(config.id, `[STATUS] 🟢 24/7 Bot Connection Active — Online & Ready.`);
+
+            if (config.password) {
+                setTimeout(() => {
+                    try {
+                        bot.chat(`/login ${config.password}`);
+                        logAndEmit(config.id, `[AuthMe] Sent /login password command.`);
+                    } catch {}
+                }, 1200);
+            }
+
+            emitPlayerList(config.id);
             setTimeout(() => {
-                try {
-                    bot.chat(`/login ${config.password}`);
-                } catch {}
-            }, 1000);
+                emitPlayerList(config.id);
+                const pl = getPlayersArray(config.id);
+                if (pl.length > 0) {
+                    logAndEmit(config.id, `[PLAYERS] 👥 Online Roster (${pl.length} player${pl.length === 1 ? '' : 's'}): ${pl.slice(0, 8).join(', ')}${pl.length > 8 ? ' ...' : ''}`);
+                }
+            }, 1800);
+            setTimeout(() => emitPlayerList(config.id), 4000);
+            updateSMPInfo(config);
+        } catch (spawnErr) {
+            console.error('[SPAWN HANDLER ERROR]', spawnErr);
         }
-
-        emitPlayerList(config.id);
-        updateSMPInfo(config);
 
         // --- ENHANCED 24/7 ACTIVE ANTI-AFK ROUTINE ---
         // Keeps the bot active and prevents Aternos / Minehut / Spigot idle kicks and shutdowns
@@ -1356,11 +1567,43 @@ function startBot(config) {
                     }
                 } catch {}
             }
-        }, 25000); // Trigger every 25 seconds
+        }, 22000); // Trigger every 22 seconds
     });
 
-    bot.on('playerJoined', () => emitPlayerList(config.id));
-    bot.on('playerLeft', () => emitPlayerList(config.id));
+    bot.on('respawn', () => {
+        try {
+            logAndEmit(config.id, `[WORLD] 🌍 ${validUsername} respawned / transferred dimension.`);
+            emitPlayerList(config.id);
+            setTimeout(() => emitPlayerList(config.id), 2000);
+        } catch {}
+    });
+
+    bot.on('playerJoined', (player) => {
+        const pName = player ? (player.username || player.name) : 'Player';
+        if (pName && pName !== validUsername) {
+            logAndEmit(config.id, `[PLAYER JOINED] + ${pName} joined the server.`);
+        }
+        emitPlayerList(config.id);
+    });
+
+    bot.on('playerLeft', (player) => {
+        const pName = player ? (player.username || player.name) : 'Player';
+        if (pName && pName !== validUsername) {
+            logAndEmit(config.id, `[PLAYER LEFT] - ${pName} left the server.`);
+        }
+        emitPlayerList(config.id);
+    });
+
+    bot.on('playerUpdated', () => {
+        emitPlayerList(config.id);
+    });
+
+    // Dedicated Live Player Roster Syncer (every 5 seconds while online)
+    const rosterInterval = setInterval(() => {
+        if (activeBots[config.id] && bot && (bot.entity || (bot._client && !bot._client.ended))) {
+            emitPlayerList(config.id);
+        }
+    }, 5000);
 
     const posInterval = setInterval(() => {
         if (bot && bot.entity) {
@@ -1443,14 +1686,19 @@ function startBot(config) {
 
     bot.on('chat', async (user, message) => {
         if (user === bot.username || user === config.username) return;
-        logAndEmit(config.id, `<${user}> ${message}`);
         handleInGameCommand(user, message);
     });
 
     bot.on('messagestr', (message, position) => {
-        if (!message) return;
+        if (!message || typeof message !== 'string') return;
+        const trimmed = message.trim();
+        if (!trimmed) return;
+
+        // Log all server messages, broadcasts and player chats to console
+        logAndEmit(config.id, trimmed);
+
         // Parse chat from custom formatted SMP servers (Paper, LPC, Essentials)
-        const match = message.match(/(?:<([^>]+)>|([a-zA-Z0-9_]{3,16})\s*[:»])\s*(!ai\b.*|!gemini\b.*|!ping\b|!pos\b|!uptime\b|!help\b)/i);
+        const match = trimmed.match(/(?:<([^>]+)>|([a-zA-Z0-9_]{3,16})\s*[:»])\s*(!ai\b.*|!gemini\b.*|!ping\b|!pos\b|!uptime\b|!help\b)/i);
         if (match) {
             const sender = match[1] || match[2] || 'Player';
             const cmd = match[3];
@@ -1473,16 +1721,18 @@ function startBot(config) {
             autoReconnect[config.id] = false;
             setBotStatus(config.id, 'WHITELISTED', '#f5a623');
             logAndEmit(config.id, `[WHITELIST] Server whitelist is active. To allow the bot to join, run on server console: /whitelist add ${validUsername}`);
-        } else if (lower.includes('another location') || lower.includes('already connected') || lower.includes('already logged in') || lower.includes('another device')) {
+        } else if (lower.includes('duplicate_login') || lower.includes('another location') || lower.includes('already connected') || lower.includes('already logged in') || lower.includes('another device')) {
             wasConflict = true;
             autoReconnect[config.id] = false;
-            setBotStatus(config.id, 'CONFLICT', '#f5a623');
-            logAndEmit(config.id, `[CONFLICT] Account logged in from another device/session. Auto-reconnect paused to prevent join/left kick loop.`);
+            setBotStatus(config.id, 'STANDBY', '#888888');
+            logAndEmit(config.id, `[SESSION CONFLICT] Another player/session is actively using username "${validUsername}". Bot is standing by so you can play without disconnection. Click "Start" when you are done playing.`);
         }
     });
 
     bot.on('end', (reason) => {
+        hasEnded = true;
         clearInterval(posInterval);
+        clearInterval(rosterInterval);
         if (afkTimers[config.id]) {
             clearInterval(afkTimers[config.id]);
             delete afkTimers[config.id];
@@ -1490,25 +1740,27 @@ function startBot(config) {
         delete activeBots[config.id];
         delete botUptimeStarts[config.id];
         io.emit('uptime_update', { serverId: config.id, uptimeStart: null });
+        emitPlayerList(config.id);
+
         if (activeHostLocks.get(lockKey) === config.id) {
             activeHostLocks.delete(lockKey);
         }
 
         logAndEmit(config.id, `[DISCONNECTED] (${reason || 'Connection closed'}).`);
 
-        if (wasConflict) {
-            setBotStatus(config.id, 'CONFLICT', '#f5a623');
-            return;
-        }
-
         if (wasKickedWhitelist) {
             setBotStatus(config.id, 'WHITELISTED', '#f5a623');
             return;
         }
 
+        if (wasConflict) {
+            setBotStatus(config.id, 'STANDBY', '#888888');
+            return;
+        }
+
         // Only stop if user explicitly stopped the bot via Stop Bot button
         if (autoReconnect[config.id] === false) {
-            setBotStatus(config.id, 'OFFLINE', '#e00000');
+            setBotStatus(config.id, 'STANDBY', '#888888');
             return;
         }
 
@@ -1521,12 +1773,11 @@ function startBot(config) {
 
         if (reconnectTimers[config.id]) clearTimeout(reconnectTimers[config.id]);
         reconnectTimers[config.id] = setTimeout(() => {
+            delete reconnectTimers[config.id];
             const currentCfg = serversConfig.find(s => s.id === config.id) || config;
             startBot(currentCfg);
         }, delayMs);
     });
-
-    activeBots[config.id] = bot;
 }
 
 function stopBotInstance(serverId) {
@@ -1579,10 +1830,21 @@ io.on('connection', (socket) => {
                 socket.emit('uptime_update', { serverId: s.id, uptimeStart: botUptimeStarts[s.id] || null });
                 emitPlayerList(s.id);
                 updateSMPInfo(s);
+
+                const history = serverLogsBuffer.get(s.id) || [];
+                if (history.length > 0) {
+                    socket.emit('logs_history', { serverId: s.id, logs: history });
+                }
             });
         } else {
             socket.emit('auth_error', { message: 'Session expired. Please log in again.' });
         }
+    });
+
+    socket.on('request_server_logs', (data) => {
+        if (!data || !data.serverId) return;
+        const logs = serverLogsBuffer.get(data.serverId) || [];
+        socket.emit('logs_history', { serverId: data.serverId, logs });
     });
 
     socket.on('start_bot', (data) => {
@@ -1624,8 +1886,19 @@ io.on('connection', (socket) => {
     });
 
     socket.on('get_players', (data) => {
+        if (!data || !data.serverId) return;
         if (!canAccessServer(socket.user, data.serverId)) return;
         emitPlayerList(data.serverId);
+        const pl = getPlayersArray(data.serverId);
+        if (pl.length > 0) {
+            logAndEmit(data.serverId, `[PLAYERS] 👥 Online Roster (${pl.length}): ${pl.join(', ')}`);
+        } else {
+            const bot = activeBots[data.serverId];
+            const isOnline = !!(bot && (bot.entity || (bot._client && !bot._client.ended)));
+            if (isOnline) {
+                logAndEmit(data.serverId, `[PLAYERS] 👥 Roster empty or waiting for server tablist packet.`);
+            }
+        }
     });
 
     socket.on('create_server', (data) => {
@@ -1687,10 +1960,8 @@ io.on('connection', (socket) => {
     socket.on('refresh_fleet', async () => {
         if (!socket.user) return;
         const visible = getVisibleServers(socket.user);
-        for (const s of visible) {
-            updateSMPInfo(s);
-            emitPlayerList(s.id);
-        }
+        await Promise.all(visible.map(s => updateSMPInfo(s)));
+        visible.forEach(s => emitPlayerList(s.id));
         emitServersListToAll();
         socket.emit('fleet_refreshed', { count: visible.length });
     });
@@ -1739,22 +2010,32 @@ io.on('connection', (socket) => {
 
 server.listen(PORT, '0.0.0.0', () => {
     console.log(`[HTTP] Server listening on port ${PORT}`);
-    // Start active bots on launch so bot stays connected even when browser/system is closed
-    serversConfig.forEach(async (cfg) => {
-        if (cfg.autoStart !== false) {
-            const tryStart = async () => {
-                const isOnline = await updateSMPInfo(cfg);
-                if (isOnline) {
-                    startBot(cfg);
-                } else {
-                    setBotStatus(cfg.id, 'WAITING_SERVER', '#f5a623');
-                    // Retry every 20s if server is sleeping or starting
-                    setTimeout(tryStart, 20000);
-                }
-            };
-            tryStart();
+    // Start active bots on launch only if explicitly enabled
+    serversConfig.forEach((cfg) => {
+        if (cfg.autoStart === true) {
+            console.log(`[BOOT] Auto-starting bot for "${cfg.name}" (${cfg.host}:${cfg.port})...`);
+            startBot(cfg);
         }
     });
+
+    // --- 24/7 MULTI-TIER KEEP-ALIVE HEARTBEAT ---
+    // 1. Internal loopback heartbeat every 60s
+    setInterval(() => {
+        http.get(`http://127.0.0.1:${PORT}/api/keepalive`, () => {}).on('error', () => {});
+    }, 60000);
+
+    // 2. External public ingress ping every 75s (generates ingress traffic to prevent Cloud Run scale-to-zero when device is powered off)
+    setInterval(() => {
+        if (detectedPublicOrigin) {
+            try {
+                const targetUrl = new URL(`${detectedPublicOrigin}/api/keepalive`);
+                const client = targetUrl.protocol === 'https:' ? https : http;
+                client.get(targetUrl.href, { timeout: 10000 }, (res) => {
+                    // Ingress keepalive success
+                }).on('error', () => {});
+            } catch {}
+        }
+    }, 75000);
 });
 
 module.exports = app;

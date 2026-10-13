@@ -1,0 +1,1166 @@
+/* ==========================================================================
+   ODINLUX 3D SPATIAL UI & GLASSMORPHISM ENGINE STYLES
+   Full 3D Animations, Mouse Effects, Scroll FX, and Customization Studio
+   ========================================================================== */
+
+:root {
+    /* 3D Spatial Parameters */
+    --spatial-perspective: 1200px;
+    --spatial-depth-level: 25px;
+    --spatial-tilt-intensity: 1;
+    --spatial-card-scale: 1.02;
+
+    /* Glassmorphism Surface Parameters */
+    --glass-blur: 16px;
+    --glass-opacity: 0.68;
+    --glass-card-opacity: 0.62;
+    --glass-border-opacity: 0.14;
+    --glass-specular-opacity: 0.18;
+    --glass-border-color: rgba(255, 255, 255, var(--glass-border-opacity));
+    --glass-specular: inset 0 1px 1px 0 rgba(255, 255, 255, var(--glass-specular-opacity));
+    --glass-shadow: 0 10px 35px -5px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, var(--glass-border-opacity));
+
+    /* Mouse Glow & Cursor Trail */
+    --mouse-glow-size: 550px;
+    --mouse-glow-opacity: 0.18;
+    --mouse-x: 50vw;
+    --mouse-y: 50vh;
+
+    /* Theme Accents & Lighting */
+    --accent: #10b981;
+    --accent-rgb: 16, 185, 129;
+    --accent-glow: rgba(var(--accent-rgb), 0.35);
+    --accent-glow-strong: rgba(var(--accent-rgb), 0.65);
+    
+    /* Animation Timing */
+    --anim-duration-page: 0.4s;
+    --anim-easing: cubic-bezier(0.16, 1, 0.3, 1);
+    --scroll-progress: 0%;
+}
+
+/* Base Body with 3D Spatial Canvas */
+body {
+    position: relative;
+    background: #07090e;
+    overflow: hidden;
+}
+
+/* Three.js 3D WebGL Background Canvas */
+#spatial3dCanvas {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.85;
+    transition: opacity 0.5s ease;
+}
+
+/* Interactive Mouse Glow Follower */
+#mouseSpatialGlow {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: var(--mouse-glow-size);
+    height: var(--mouse-glow-size);
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 1;
+    background: radial-gradient(circle, rgba(var(--accent-rgb), var(--mouse-glow-opacity)) 0%, rgba(var(--accent-rgb), 0.04) 45%, transparent 70%);
+    transform: translate(-50%, -50%);
+    mix-blend-mode: screen;
+    will-change: transform, left, top;
+    transition: width 0.3s ease, height 0.3s ease, opacity 0.3s ease;
+}
+
+/* Glowing Scroll Progress Bar */
+#scrollProgressBar {
+    position: fixed;
+    top: 56px;
+    left: 0;
+    width: var(--scroll-progress);
+    height: 3px;
+    background: linear-gradient(90deg, var(--accent), #00d4ff, #a855f7);
+    box-shadow: 0 0 12px var(--accent-glow-strong);
+    z-index: 101;
+    transition: width 0.1s linear, background 0.3s ease;
+}
+
+/* --------------------------------------------------------------------------
+   GLASSMORPHISM UPGRADES FOR APP COMPONENTS
+   -------------------------------------------------------------------------- */
+
+/* Top Navigation Bar */
+.top-nav {
+    background: rgba(8, 12, 20, var(--glass-opacity)) !important;
+    backdrop-filter: blur(var(--glass-blur)) saturate(180%) !important;
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(180%) !important;
+    border-bottom: 1px solid var(--glass-border-color) !important;
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.4), var(--glass-specular) !important;
+    z-index: 100 !important;
+}
+
+/* Sidebar Aside */
+aside {
+    background: rgba(9, 14, 24, var(--glass-opacity)) !important;
+    backdrop-filter: blur(var(--glass-blur)) saturate(180%) !important;
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(180%) !important;
+    border-right: 1px solid var(--glass-border-color) !important;
+    box-shadow: inset -1px 0 0 0 rgba(255, 255, 255, 0.04) !important;
+    z-index: 10 !important;
+}
+
+/* Main Container 3D Perspective Context */
+main {
+    perspective: var(--spatial-perspective);
+    perspective-origin: center center;
+    transform-style: preserve-3d;
+    background: transparent !important;
+    position: relative;
+    z-index: 5;
+    scroll-behavior: smooth;
+}
+
+.content-area {
+    transform-style: preserve-3d;
+    position: relative;
+    z-index: 5;
+}
+
+/* Glass Cards & 3D Interactive Elements */
+.stat-card,
+.bot-fleet-card,
+.smp-embed,
+.console-wrapper,
+.players-box,
+.ai-chat-box,
+.server-profile-box,
+.modal-subcard {
+    background: rgba(14, 20, 34, var(--glass-card-opacity)) !important;
+    backdrop-filter: blur(var(--glass-blur)) saturate(180%) !important;
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(180%) !important;
+    border: 1px solid var(--glass-border-color) !important;
+    box-shadow: var(--glass-shadow), var(--glass-specular) !important;
+    position: relative;
+    transform-style: preserve-3d;
+    will-change: transform, box-shadow;
+    transition: transform 0.28s var(--anim-easing), box-shadow 0.28s var(--anim-easing), border-color 0.28s var(--anim-easing);
+}
+
+/* 3D Specular Sheen Layer on Cards */
+.stat-card::after,
+.bot-fleet-card::after,
+.smp-embed::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: radial-gradient(circle at var(--card-shine-x, 50%) var(--card-shine-y, 50%), rgba(255, 255, 255, 0.12) 0%, transparent 60%);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+    mix-blend-mode: overlay;
+}
+
+.stat-card:hover::after,
+.bot-fleet-card:hover::after,
+.smp-embed:hover::after {
+    opacity: 1;
+}
+
+/* Interactive Card Hover Elevating in 3D Space */
+.stat-card:hover,
+.bot-fleet-card:hover,
+.smp-embed:hover {
+    border-color: rgba(var(--accent-rgb), 0.35) !important;
+    box-shadow: 0 16px 40px -10px rgba(0, 0, 0, 0.65), 0 0 25px rgba(var(--accent-rgb), 0.2), var(--glass-specular) !important;
+}
+
+/* Modal Windows Glassmorphism */
+.modal-overlay {
+    background: rgba(3, 6, 12, 0.78) !important;
+    backdrop-filter: blur(12px) !important;
+    -webkit-backdrop-filter: blur(12px) !important;
+    perspective: 1200px;
+}
+
+.modal-box {
+    position: relative;
+    background: rgba(15, 23, 42, 0.88) !important;
+    backdrop-filter: blur(24px) saturate(200%) !important;
+    -webkit-backdrop-filter: blur(24px) saturate(200%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.16) !important;
+    box-shadow: 0 25px 60px -12px rgba(0, 0, 0, 0.85), 0 0 40px rgba(var(--accent-rgb), 0.15), inset 0 1px 1px rgba(255, 255, 255, 0.2) !important;
+    user-select: auto;
+    will-change: transform, left, top;
+}
+
+.modal-header,
+.studio-header {
+    cursor: grab;
+    user-select: none;
+    position: relative;
+}
+
+.modal-header:active,
+.studio-header:active {
+    cursor: grabbing;
+}
+
+.modal-header::before,
+.studio-header::before {
+    content: '⠿';
+    position: absolute;
+    top: 6px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.25);
+    letter-spacing: 2px;
+    line-height: 1;
+    pointer-events: none;
+    transition: color 0.2s ease;
+}
+
+.modal-header:hover::before,
+.studio-header:hover::before {
+    color: rgba(var(--accent-rgb), 0.7);
+}
+
+.modal-close {
+    cursor: pointer !important;
+}
+
+@keyframes modal3dEnter {
+    from {
+        opacity: 0;
+        transform: scale(0.92) translateY(20px) rotateX(8deg);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0) rotateX(0deg);
+    }
+}
+
+/* Buttons with 3D Depth & Spatial Micro-Interaction */
+.btn {
+    position: relative;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    transition: transform 0.18s var(--anim-easing), box-shadow 0.18s var(--anim-easing), background-color 0.18s ease;
+    border: 1px solid var(--glass-border-color) !important;
+}
+
+.btn:hover {
+    transform: translateY(-2px) scale(1.02);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35), 0 0 15px rgba(var(--accent-rgb), 0.25);
+}
+
+.btn:active {
+    transform: translateY(1px) scale(0.98);
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #ffffff, #e2e8f0) !important;
+    color: #050505 !important;
+    box-shadow: 0 4px 15px rgba(255, 255, 255, 0.2) !important;
+}
+
+.btn-primary:hover {
+    background: linear-gradient(135deg, #ffffff, #f8fafc) !important;
+    box-shadow: 0 6px 25px rgba(255, 255, 255, 0.4) !important;
+}
+
+.btn-success {
+    background: linear-gradient(135deg, var(--accent), #059669) !important;
+    box-shadow: 0 4px 18px var(--accent-glow) !important;
+}
+
+.btn-success:hover {
+    box-shadow: 0 6px 24px var(--accent-glow-strong) !important;
+}
+
+/* Tabs & Sidebar Active States */
+.tab-btn {
+    transition: all 0.2s var(--anim-easing) !important;
+    border: 1px solid transparent !important;
+}
+
+.tab-btn:hover {
+    background: rgba(255, 255, 255, 0.05) !important;
+    transform: translateX(4px);
+    border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+.tab-btn.active {
+    background: rgba(var(--accent-rgb), 0.12) !important;
+    border-color: rgba(var(--accent-rgb), 0.35) !important;
+    color: #ffffff !important;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3), inset 0 0 12px rgba(var(--accent-rgb), 0.1) !important;
+    transform: translateX(4px);
+}
+
+/* --------------------------------------------------------------------------
+   3D PAGE TRANSITION CHOREOGRAPHY
+   -------------------------------------------------------------------------- */
+
+/* Page View Base */
+.page-view {
+    transition: opacity var(--anim-duration-page) var(--anim-easing), transform var(--anim-duration-page) var(--anim-easing);
+    will-change: opacity, transform;
+}
+
+/* 3D Spatial Depth Mode Entrance */
+.page-view.page-enter-spatial {
+    animation: spatialPageEnter 0.45s var(--anim-easing) forwards;
+}
+
+@keyframes spatialPageEnter {
+    0% {
+        opacity: 0;
+        transform: translateY(30px) translateZ(-60px) rotateX(6deg) scale(0.96);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0) translateZ(0) rotateX(0deg) scale(1);
+    }
+}
+
+/* Hologram Beam Mode Entrance */
+.page-view.page-enter-holo {
+    animation: holoPageEnter 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+
+@keyframes holoPageEnter {
+    0% {
+        opacity: 0;
+        transform: scale(0.9) translateZ(-100px);
+        filter: brightness(1.8) blur(4px);
+    }
+    60% {
+        filter: brightness(1.2) blur(1px);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1) translateZ(0);
+        filter: brightness(1) blur(0);
+    }
+}
+
+/* Smooth Slide Mode Entrance */
+.page-view.page-enter-slide {
+    animation: slidePageEnter 0.35s var(--anim-easing) forwards;
+}
+
+@keyframes slidePageEnter {
+    0% {
+        opacity: 0;
+        transform: translateX(25px);
+    }
+    100% {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+/* Staggered Children Animation on Page Reveal */
+.page-view.page-enter-spatial .stat-card,
+.page-view.page-enter-spatial .bot-fleet-card,
+.page-view.page-enter-spatial .console-wrapper {
+    animation: spatialCardStagger 0.4s var(--anim-easing);
+}
+
+.page-view.page-enter-spatial .stats-grid > div:nth-child(1) { animation-delay: 0.04s; }
+.page-view.page-enter-spatial .stats-grid > div:nth-child(2) { animation-delay: 0.08s; }
+.page-view.page-enter-spatial .stats-grid > div:nth-child(3) { animation-delay: 0.12s; }
+.page-view.page-enter-spatial .stats-grid > div:nth-child(4) { animation-delay: 0.16s; }
+.page-view.page-enter-spatial .bots-fleet-grid > div:nth-child(1) { animation-delay: 0.08s; }
+.page-view.page-enter-spatial .bots-fleet-grid > div:nth-child(2) { animation-delay: 0.12s; }
+.page-view.page-enter-spatial .bots-fleet-grid > div:nth-child(3) { animation-delay: 0.16s; }
+
+@keyframes spatialCardStagger {
+    0% {
+        transform: translateY(10px) translateZ(-15px);
+    }
+    100% {
+        transform: translateY(0) translateZ(0);
+    }
+}
+
+/* --------------------------------------------------------------------------
+   FLOATING SPATIAL ACTION BUTTONS (FABs)
+   -------------------------------------------------------------------------- */
+
+.spatial-fab-container {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    z-index: 99;
+}
+
+.spatial-fab {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: rgba(14, 20, 34, 0.85);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5), 0 0 15px rgba(var(--accent-rgb), 0.2);
+    transition: transform 0.2s var(--anim-easing), box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.spatial-fab:hover {
+    transform: scale(1.1) translateY(-2px);
+    border-color: var(--accent);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.65), 0 0 25px var(--accent-glow-strong);
+    color: var(--accent);
+}
+
+.spatial-fab.studio-fab {
+    width: auto;
+    border-radius: 24px;
+    padding: 0 16px;
+    gap: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    background: linear-gradient(135deg, rgba(14, 20, 34, 0.9), rgba(24, 34, 58, 0.9));
+    border-color: rgba(var(--accent-rgb), 0.4);
+}
+
+#btnScrollToTop {
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(12px) scale(0.9);
+    transition: opacity 0.25s ease, transform 0.25s var(--anim-easing);
+}
+
+#btnScrollToTop.visible {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0) scale(1);
+}
+
+/* --------------------------------------------------------------------------
+   CLICK PARTICLES & SPARK BURST
+   -------------------------------------------------------------------------- */
+
+.spatial-spark {
+    position: fixed;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 10000;
+    animation: sparkFly 0.65s cubic-bezier(0.12, 0.8, 0.32, 1) forwards;
+}
+
+@keyframes sparkFly {
+    0% {
+        transform: translate(0, 0) scale(1);
+        opacity: 1;
+    }
+    100% {
+        transform: translate(var(--spark-tx), var(--spark-ty)) scale(0);
+        opacity: 0;
+    }
+}
+
+/* --------------------------------------------------------------------------
+   CUSTOMIZATION STUDIO MODAL STYLES
+   -------------------------------------------------------------------------- */
+
+#customizerModal .modal-box {
+    max-width: 660px;
+    width: 95%;
+    max-height: 88vh;
+    padding: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.studio-header {
+    padding: 20px 24px;
+    background: rgba(10, 16, 28, 0.95);
+    border-bottom: 1px solid var(--glass-border-color);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.studio-title-block {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.studio-icon-badge {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    background: rgba(var(--accent-rgb), 0.15);
+    border: 1px solid rgba(var(--accent-rgb), 0.35);
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 0 15px rgba(var(--accent-rgb), 0.25);
+}
+
+.studio-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: #ffffff;
+    margin: 0;
+    letter-spacing: -0.01em;
+}
+
+.studio-subtitle {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin: 2px 0 0 0;
+}
+
+.studio-body {
+    padding: 20px 24px;
+    overflow-y: auto;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.studio-section {
+    background: rgba(10, 15, 26, 0.75);
+    border: 1px solid var(--glass-border-color);
+    border-radius: 12px;
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.studio-section-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    letter-spacing: 0.01em;
+}
+
+.studio-slider-row {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.studio-slider-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.studio-slider-val {
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--accent);
+    font-weight: 600;
+}
+
+/* Custom Range Slider */
+.studio-range {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 6px;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.1);
+    outline: none;
+    transition: background 0.2s;
+}
+
+.studio-range::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #ffffff;
+    border: 2px solid var(--accent);
+    cursor: pointer;
+    box-shadow: 0 0 10px var(--accent-glow);
+    transition: transform 0.1s ease;
+}
+
+.studio-range::-webkit-slider-thumb:hover {
+    transform: scale(1.2);
+}
+
+/* Color Swatches Grid */
+.theme-swatches-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(88px, 1fr));
+    gap: 8px;
+}
+
+.theme-swatch-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 6px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s var(--anim-easing);
+    color: var(--text-muted);
+    font-size: 11px;
+    font-weight: 500;
+}
+
+.theme-swatch-btn:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: #fff;
+    transform: translateY(-2px);
+}
+
+.theme-swatch-btn.active {
+    border-color: var(--accent);
+    background: rgba(var(--accent-rgb), 0.12);
+    color: #fff;
+    box-shadow: 0 0 12px rgba(var(--accent-rgb), 0.3);
+}
+
+.theme-dot {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    box-shadow: 0 0 8px currentColor;
+}
+
+/* Segmented Control Buttons */
+.studio-segmented {
+    display: flex;
+    background: rgba(0, 0, 0, 0.4);
+    padding: 3px;
+    border-radius: 8px;
+    border: 1px solid var(--glass-border-color);
+    gap: 2px;
+}
+
+.studio-segment-btn {
+    flex: 1;
+    padding: 6px 10px;
+    border-radius: 6px;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 11.5px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.18s ease;
+    text-align: center;
+}
+
+.studio-segment-btn:hover {
+    color: #ffffff;
+}
+
+.studio-segment-btn.active {
+    background: rgba(var(--accent-rgb), 0.2);
+    color: #ffffff;
+    font-weight: 600;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(var(--accent-rgb), 0.3);
+}
+
+/* Switch Toggle Row */
+.studio-toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 12.5px;
+    color: var(--text-main);
+}
+
+.studio-toggle-desc {
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+/* Custom Checkbox Toggle */
+.studio-switch {
+    position: relative;
+    display: inline-block;
+    width: 40px;
+    height: 22px;
+}
+
+.studio-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.studio-slider-round {
+    position: absolute;
+    cursor: pointer;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background-color: rgba(255, 255, 255, 0.15);
+    transition: .3s;
+    border-radius: 22px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.studio-slider-round:before {
+    position: absolute;
+    content: "";
+    height: 16px;
+    width: 16px;
+    left: 2px;
+    bottom: 2px;
+    background-color: white;
+    transition: .3s;
+    border-radius: 50%;
+}
+
+.studio-switch input:checked + .studio-slider-round {
+    background-color: var(--accent);
+    box-shadow: 0 0 10px var(--accent-glow);
+}
+
+.studio-switch input:checked + .studio-slider-round:before {
+    transform: translateX(18px);
+}
+
+.studio-footer {
+    padding: 16px 24px;
+    background: rgba(10, 16, 28, 0.95);
+    border-top: 1px solid var(--glass-border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* 3D Rotating Gyroscope Status Sphere */
+.spatial-gyro-sphere {
+    width: 16px;
+    height: 16px;
+    position: relative;
+    transform-style: preserve-3d;
+    animation: gyroSpin 4s linear infinite;
+    display: inline-block;
+}
+
+@keyframes gyroSpin {
+    0% { transform: rotateX(0deg) rotateY(0deg) rotateZ(0deg); }
+    100% { transform: rotateX(360deg) rotateY(360deg) rotateZ(180deg); }
+}
+
+.spatial-gyro-ring {
+    position: absolute;
+    inset: 0;
+    border: 1.5px solid var(--accent);
+    border-radius: 50%;
+    box-shadow: 0 0 6px var(--accent);
+}
+
+.spatial-gyro-ring:nth-child(1) { transform: rotateX(60deg); }
+.spatial-gyro-ring:nth-child(2) { transform: rotateY(60deg); }
+.spatial-gyro-ring:nth-child(3) { transform: rotateZ(60deg); }
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+    #spatial3dCanvas { display: none !important; }
+    .page-view { animation: none !important; transition: none !important; }
+    .stat-card, .bot-fleet-card, .btn { transition: none !important; }
+}
+
+/* ==========================================================================
+   MOVEABLE & DRAGGABLE 3D ELEMENT WIDGET (MOUSE INTERACTION)
+   ========================================================================== */
+
+#spatial3dFloatingWidget {
+    position: fixed;
+    right: 24px;
+    bottom: 24px;
+    width: 310px;
+    background: rgba(12, 18, 30, 0.88);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid rgba(var(--accent-rgb), 0.35);
+    border-radius: 12px;
+    box-shadow: 0 16px 45px rgba(0, 0, 0, 0.7), 0 0 25px rgba(var(--accent-rgb), 0.25);
+    z-index: 9998;
+    overflow: hidden;
+    user-select: none;
+    transition: box-shadow 0.25s ease, opacity 0.25s ease, transform 0.2s ease;
+}
+
+#spatial3dFloatingWidget.minimized {
+    height: 48px !important;
+    overflow: hidden;
+}
+
+#spatial3dFloatingWidget:hover {
+    box-shadow: 0 20px 55px rgba(0, 0, 0, 0.8), 0 0 35px rgba(var(--accent-rgb), 0.38);
+}
+
+.widget-drag-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    background: rgba(18, 26, 44, 0.95);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    cursor: grab;
+    font-size: 12px;
+    font-weight: 600;
+    color: #fff;
+    letter-spacing: 0.3px;
+}
+
+.widget-drag-header:active {
+    cursor: grabbing;
+}
+
+.widget-drag-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.widget-live-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 8px var(--accent);
+    animation: livePulse 2s infinite;
+}
+
+@keyframes livePulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(0.85); }
+}
+
+.widget-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.widget-icon-btn {
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: var(--text-muted);
+    border-radius: 4px;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 11px;
+    transition: all 0.15s ease;
+}
+
+.widget-icon-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+.widget-canvas-container {
+    position: relative;
+    width: 100%;
+    height: 220px;
+    background: radial-gradient(circle at 50% 50%, rgba(var(--accent-rgb), 0.12) 0%, rgba(5, 8, 14, 0.95) 75%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: grab;
+}
+
+.widget-canvas-container:active {
+    cursor: grabbing;
+}
+
+#spatialWidgetCanvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+.widget-canvas-overlay-hints {
+    position: absolute;
+    bottom: 8px;
+    left: 10px;
+    right: 10px;
+    display: flex;
+    justify-content: space-between;
+    pointer-events: none;
+    font-size: 10.5px;
+    color: rgba(255, 255, 255, 0.65);
+    background: rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(4px);
+    padding: 3px 8px;
+    border-radius: 6px;
+}
+
+.widget-controls-bar {
+    padding: 10px 14px;
+    background: rgba(10, 15, 26, 0.95);
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.widget-block-selector {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 8px;
+    overflow-x: auto;
+    padding-bottom: 2px;
+}
+
+.widget-block-pill {
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 10.5px;
+    font-weight: 500;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: var(--text-muted);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.15s ease;
+}
+
+.widget-block-pill:hover, .widget-block-pill.active {
+    background: rgba(var(--accent-rgb), 0.2);
+    border-color: var(--accent);
+    color: #fff;
+    box-shadow: 0 0 10px rgba(var(--accent-rgb), 0.3);
+}
+
+.widget-actions-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 11px;
+}
+
+/* ==========================================================================
+   DRAGGABLE UI PANELS & WORKSPACE ENGINE
+   ========================================================================== */
+
+/* Active indicator banner for Draggable UI mode */
+.move-ui-active-banner {
+    position: fixed;
+    top: 64px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(16, 185, 129, 0.95);
+    color: #000;
+    padding: 8px 18px;
+    border-radius: 30px;
+    font-weight: 600;
+    font-size: 12.5px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    box-shadow: 0 8px 30px rgba(16, 185, 129, 0.4), 0 0 0 2px rgba(255, 255, 255, 0.3);
+    z-index: 9990;
+    animation: slideDownBanner 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes slideDownBanner {
+    from { opacity: 0; transform: translate(-50%, -20px); }
+    to { opacity: 1; transform: translate(-50%, 0); }
+}
+
+.move-ui-active-banner button {
+    background: #000;
+    color: #fff;
+    border: none;
+    border-radius: 16px;
+    padding: 4px 10px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.15s;
+}
+
+.move-ui-active-banner button:hover {
+    opacity: 0.85;
+}
+
+/* Draggable UI Card Grip Handle */
+.draggable-ui-handle {
+    display: none;
+    align-items: center;
+    gap: 5px;
+    font-size: 10.5px;
+    padding: 3px 8px;
+    background: rgba(var(--accent-rgb), 0.2);
+    border: 1px dashed var(--accent);
+    border-radius: 4px;
+    color: #fff;
+    cursor: grab;
+    margin-bottom: 8px;
+    user-select: none;
+    width: fit-content;
+}
+
+.draggable-ui-handle:active {
+    cursor: grabbing;
+}
+
+body.draggable-ui-mode-on .draggable-ui-handle {
+    display: inline-flex !important;
+}
+
+body.draggable-ui-mode-on .stat-card,
+body.draggable-ui-mode-on .bot-fleet-card,
+body.draggable-ui-mode-on .smp-card-container,
+body.draggable-ui-mode-on .card {
+    cursor: grab;
+    transition: transform 0.05s linear, box-shadow 0.2s ease !important;
+    border-color: rgba(var(--accent-rgb), 0.5) !important;
+}
+
+body.draggable-ui-mode-on .stat-card:hover,
+body.draggable-ui-mode-on .bot-fleet-card:hover {
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7), 0 0 16px rgba(var(--accent-rgb), 0.4) !important;
+}
+
+.card-is-dragging {
+    cursor: grabbing !important;
+    opacity: 0.92;
+    z-index: 1000 !important;
+    box-shadow: 0 25px 60px rgba(0, 0, 0, 0.85), 0 0 35px var(--accent) !important;
+    transform: scale(1.03) !important;
+}
+
+/* ==========================================================================
+   FEATURE GUIDE MODAL ("WHERE IS THIS?")
+   ========================================================================== */
+
+#spatialHelpGuideModal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(12px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 99999;
+    padding: 20px;
+}
+
+.guide-modal-box {
+    width: 100%;
+    max-width: 680px;
+    background: rgba(14, 20, 32, 0.95);
+    border: 1px solid rgba(var(--accent-rgb), 0.4);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8), 0 0 30px rgba(var(--accent-rgb), 0.2);
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.guide-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    background: rgba(20, 28, 46, 0.9);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.guide-modal-header h3 {
+    margin: 0;
+    font-size: 16px;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.guide-modal-body {
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    max-height: 75vh;
+    overflow-y: auto;
+}
+
+.guide-card-item {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    padding: 14px 16px;
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+    transition: all 0.2s ease;
+}
+
+.guide-card-item:hover {
+    background: rgba(var(--accent-rgb), 0.08);
+    border-color: rgba(var(--accent-rgb), 0.35);
+    transform: translateY(-2px);
+}
+
+.guide-card-icon {
+    font-size: 24px;
+    line-height: 1;
+    padding: 8px;
+    background: rgba(var(--accent-rgb), 0.15);
+    border-radius: 8px;
+    border: 1px solid rgba(var(--accent-rgb), 0.25);
+}
+
+.guide-card-content h4 {
+    margin: 0 0 4px 0;
+    color: #fff;
+    font-size: 14px;
+}
+
+.guide-card-content p {
+    margin: 0 0 8px 0;
+    font-size: 12px;
+    color: var(--text-muted);
+    line-height: 1.5;
+}
+
+.guide-action-btn {
+    background: rgba(var(--accent-rgb), 0.2);
+    border: 1px solid var(--accent);
+    color: #fff;
+    border-radius: 6px;
+    padding: 4px 12px;
+    font-size: 11.5px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.15s ease;
+}
+
+.guide-action-btn:hover {
+    background: var(--accent);
+    color: #000;
+}
+

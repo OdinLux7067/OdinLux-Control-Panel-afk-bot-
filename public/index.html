@@ -12,6 +12,9 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <link rel="stylesheet" href="/spatial-studio.css">
+    <script src="/spatial-studio.js"></script>
     <style>
         :root {
             --bg-body: #000000;
@@ -468,7 +471,7 @@
         .tab-btn { width: 100%; background: transparent; color: var(--text-muted); border: none; padding: 8px 12px; border-radius: 6px; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 10px; font-size: 13px; transition: all 0.1s ease; text-align: left; }
         .tab-btn:hover { background: #111; color: var(--text-main); }
         .tab-btn.active { background: #161616; color: #fff; font-weight: 600; border: 1px solid var(--border); }
-        .tab-status { width: 6px; height: 6px; border-radius: 50%; background: var(--warning); display: inline-block; flex-shrink: 0; }
+        .tab-status { width: 6px; height: 6px; border-radius: 50%; background: #888888; display: inline-block; flex-shrink: 0; transition: background-color 0.25s ease; }
         .badge-bot-count { margin-left: auto; font-size: 11px; background: rgba(16, 185, 129, 0.15); color: #34d399; padding: 2px 8px; border-radius: 12px; border: 1px solid rgba(16, 185, 129, 0.3); font-family: 'JetBrains Mono', monospace; font-weight: 600; }
 
         main { flex: 1; display: flex; flex-direction: column; overflow-y: auto; background: var(--bg-body); }
@@ -604,6 +607,9 @@
     </style>
 </head>
 <body>
+    <canvas id="spatial3dCanvas"></canvas>
+    <div id="mouseSpatialGlow"></div>
+    <div id="scrollProgressBar"></div>
     <div id="toastBox" class="toast-notification"></div>
 
     <!-- FULL PAGE LOGIN & SIGNUP SCREEN -->
@@ -920,6 +926,243 @@
         </div>
     </div>
 
+    <!-- 3D SPATIAL & GLASSMORPHISM CUSTOMIZATION STUDIO MODAL -->
+    <div id="customizerModal" class="modal-overlay" style="display: none;">
+        <div class="modal-box">
+            <div class="studio-header">
+                <div class="studio-title-block">
+                    <div class="studio-icon-badge">
+                        <i data-lucide="sparkles" size="18"></i>
+                    </div>
+                    <div>
+                        <h3 class="studio-title">3D Spatial & Glassmorphism Studio</h3>
+                        <p class="studio-subtitle">Full 3D animations, glassmorphism, mouse effects & theme customization</p>
+                    </div>
+                </div>
+                <button class="modal-close" onclick="SpatialStudio.closeModal()">&times;</button>
+            </div>
+
+            <div class="studio-body">
+                <!-- PRESET PACKS QUICK SWITCHER -->
+                <div class="studio-section">
+                    <div class="studio-section-title">
+                        <span>⚡ Studio Presets</span>
+                        <span style="font-size: 11px; color: var(--text-muted); font-weight: 400;">Instant one-click styles</span>
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px;">
+                        <button type="button" class="btn btn-secondary btn-sm btn-preset-load" data-preset="default" style="justify-content: center;">
+                            <span style="color: #10b981;">●</span> Emerald Matrix
+                        </button>
+                        <button type="button" class="btn btn-secondary btn-sm btn-preset-load" data-preset="diamond" style="justify-content: center;">
+                            <span style="color: #00d4ff;">●</span> Diamond 3D
+                        </button>
+                        <button type="button" class="btn btn-secondary btn-sm btn-preset-load" data-preset="amethyst" style="justify-content: center;">
+                            <span style="color: #a855f7;">●</span> Amethyst Aurora
+                        </button>
+                        <button type="button" class="btn btn-secondary btn-sm btn-preset-load" data-preset="nether" style="justify-content: center;">
+                            <span style="color: #ef4444;">●</span> Nether Fortress
+                        </button>
+                        <button type="button" class="btn btn-secondary btn-sm btn-preset-load" data-preset="solar" style="justify-content: center;">
+                            <span style="color: #f5a623;">●</span> Solar Amber
+                        </button>
+                        <button type="button" class="btn btn-secondary btn-sm btn-preset-load" data-preset="stealth" style="justify-content: center;">
+                            <span style="color: #94a3b8;">●</span> Stealth Obsidian
+                        </button>
+                    </div>
+                </div>
+
+                <!-- THEME ACCENT PALETTE -->
+                <div class="studio-section">
+                    <div class="studio-section-title">
+                        <span>🎨 Theme Palette & Luminescence</span>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span style="font-size: 11px; color: var(--text-muted);">Custom:</span>
+                            <input type="color" id="studioCustomColor" style="width: 24px; height: 24px; border: none; border-radius: 4px; cursor: pointer; background: transparent;">
+                        </div>
+                    </div>
+                    <div class="theme-swatches-grid">
+                        <button type="button" class="theme-swatch-btn active" data-color="#10b981" data-name="Emerald Matrix">
+                            <span class="theme-dot" style="background: #10b981; color: #10b981;"></span>
+                            <span>Emerald</span>
+                        </button>
+                        <button type="button" class="theme-swatch-btn" data-color="#00d4ff" data-name="Diamond Dimension">
+                            <span class="theme-dot" style="background: #00d4ff; color: #00d4ff;"></span>
+                            <span>Diamond</span>
+                        </button>
+                        <button type="button" class="theme-swatch-btn" data-color="#a855f7" data-name="Amethyst Purple">
+                            <span class="theme-dot" style="background: #a855f7; color: #a855f7;"></span>
+                            <span>Amethyst</span>
+                        </button>
+                        <button type="button" class="theme-swatch-btn" data-color="#f5a623" data-name="Solar Amber">
+                            <span class="theme-dot" style="background: #f5a623; color: #f5a623;"></span>
+                            <span>Amber</span>
+                        </button>
+                        <button type="button" class="theme-swatch-btn" data-color="#ef4444" data-name="Nether Crimson">
+                            <span class="theme-dot" style="background: #ef4444; color: #ef4444;"></span>
+                            <span>Crimson</span>
+                        </button>
+                        <button type="button" class="theme-swatch-btn" data-color="#f43f5e" data-name="Cyber Rose">
+                            <span class="theme-dot" style="background: #f43f5e; color: #f43f5e;"></span>
+                            <span>Neon Rose</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 3D BACKGROUND ENGINE MODE -->
+                <div class="studio-section">
+                    <div class="studio-section-title">
+                        <span>🧊 3D WebGL Background Scene</span>
+                    </div>
+                    <div class="studio-segmented" id="segBgMode" data-setting="backgroundMode">
+                        <button type="button" class="studio-segment-btn active" data-value="minecraft_voxels">Minecraft 3D Voxels</button>
+                        <button type="button" class="studio-segment-btn" data-value="cyber_grid">Cyber Grid</button>
+                        <button type="button" class="studio-segment-btn" data-value="holographic">Constellation</button>
+                        <button type="button" class="studio-segment-btn" data-value="nebula">Aurora Waves</button>
+                        <button type="button" class="studio-segment-btn" data-value="minimal">Minimal</button>
+                    </div>
+                </div>
+
+                <!-- GLASSMORPHISM CONTROLS -->
+                <div class="studio-section">
+                    <div class="studio-section-title">
+                        <span>✨ Glassmorphism Surfaces</span>
+                    </div>
+                    <div class="studio-slider-row">
+                        <div class="studio-slider-label">
+                            <span>Backdrop Frost & Blur</span>
+                            <span class="studio-slider-val" id="valGlassBlur">16px</span>
+                        </div>
+                        <input type="range" class="studio-range" id="sliderGlassBlur" min="0" max="32" value="16">
+                    </div>
+                    <div class="studio-slider-row">
+                        <div class="studio-slider-label">
+                            <span>Glass Surface Opacity</span>
+                            <span class="studio-slider-val" id="valGlassOpacity">68%</span>
+                        </div>
+                        <input type="range" class="studio-range" id="sliderGlassOpacity" min="15" max="95" value="68">
+                    </div>
+                    <div class="studio-slider-row">
+                        <div class="studio-slider-label">
+                            <span>Border Glow & Luminescence</span>
+                            <span class="studio-slider-val" id="valBorderGlow">14%</span>
+                        </div>
+                        <input type="range" class="studio-range" id="sliderBorderGlow" min="0" max="40" value="14">
+                    </div>
+                </div>
+
+                <!-- 3D SPATIAL DEPTH & MOUSE INTERACTION -->
+                <div class="studio-section">
+                    <div class="studio-section-title">
+                        <span>🕹️ 3D Spatial Depth & Mouse Animations</span>
+                    </div>
+                    <div class="studio-slider-row">
+                        <div class="studio-slider-label">
+                            <span>Spatial Elevation Depth (Z-axis)</span>
+                            <span class="studio-slider-val" id="valSpatialDepth">25px</span>
+                        </div>
+                        <input type="range" class="studio-range" id="sliderSpatialDepth" min="0" max="50" value="25">
+                    </div>
+                    <div class="studio-toggle-row">
+                        <div>
+                            <div>3D Interactive Card Tilt on Hover</div>
+                            <div class="studio-toggle-desc">Cards tilt and track mouse position in real 3D perspective</div>
+                        </div>
+                        <label class="studio-switch">
+                            <input type="checkbox" id="switchMouseTilt" checked>
+                            <span class="studio-slider-round"></span>
+                        </label>
+                    </div>
+                    <div class="studio-toggle-row">
+                        <div>
+                            <div>Reactive Mouse Glow Follower</div>
+                            <div class="studio-toggle-desc">Dynamic luminescent radial light floating behind cursor</div>
+                        </div>
+                        <label class="studio-switch">
+                            <input type="checkbox" id="switchMouseGlow" checked>
+                            <span class="studio-slider-round"></span>
+                        </label>
+                    </div>
+                    <div class="studio-slider-row">
+                        <div class="studio-slider-label">
+                            <span>Mouse Glow Aura Size</span>
+                            <span class="studio-slider-val" id="valMouseGlow">550px</span>
+                        </div>
+                        <input type="range" class="studio-range" id="sliderMouseGlow" min="200" max="900" value="550">
+                    </div>
+                    <div class="studio-toggle-row">
+                        <div>
+                            <div>Click Spatial Spark Burst</div>
+                            <div class="studio-toggle-desc">Dispenses 3D light sparks upon mouse clicks</div>
+                        </div>
+                        <label class="studio-switch">
+                            <input type="checkbox" id="switchClickSparks" checked>
+                            <span class="studio-slider-round"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- PAGE & SCROLL ANIMATIONS -->
+                <div class="studio-section">
+                    <div class="studio-section-title">
+                        <span>🎬 Page & Scroll Animation Choreography</span>
+                    </div>
+                    <div class="studio-slider-row">
+                        <div class="studio-slider-label">Page Transition Style</div>
+                        <div class="studio-segmented" id="segPageAnim" data-setting="pageAnimation">
+                            <button type="button" class="studio-segment-btn active" data-value="spatial">3D Depth Fold</button>
+                            <button type="button" class="studio-segment-btn" data-value="holo">Hologram Beam</button>
+                            <button type="button" class="studio-segment-btn" data-value="slide">Glass Slide</button>
+                            <button type="button" class="studio-segment-btn" data-value="instant">Instant</button>
+                        </div>
+                    </div>
+                    <div class="studio-toggle-row">
+                        <div>
+                            <div>Glowing Scroll Progress Indicator</div>
+                            <div class="studio-toggle-desc">Header neon beam indicating current scroll distance</div>
+                        </div>
+                        <label class="studio-switch">
+                            <input type="checkbox" id="switchScrollProgress" checked>
+                            <span class="studio-slider-round"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- FUTURISTIC AUDIO FEEDBACK -->
+                <div class="studio-section">
+                    <div class="studio-section-title">
+                        <span>🔊 Synthesized Audio Feedback</span>
+                    </div>
+                    <div class="studio-toggle-row">
+                        <div>
+                            <div>Sci-Fi Web Audio Feedback</div>
+                            <div class="studio-toggle-desc">Synthesizes subtle haptic clicks and chimes for UI actions</div>
+                        </div>
+                        <label class="studio-switch">
+                            <input type="checkbox" id="switchSoundFX" checked>
+                            <span class="studio-slider-round"></span>
+                        </label>
+                    </div>
+                    <div class="studio-slider-row">
+                        <div class="studio-slider-label">
+                            <span>Audio Volume</span>
+                            <span class="studio-slider-val" id="valSoundVol">12%</span>
+                        </div>
+                        <input type="range" class="studio-range" id="sliderSoundVol" min="1" max="100" value="12">
+                    </div>
+                </div>
+            </div>
+
+            <div class="studio-footer">
+                <button type="button" class="btn btn-secondary btn-sm" id="btnStudioReset">
+                    <i data-lucide="rotate-ccw" size="12"></i> Reset Defaults
+                </button>
+                <button type="button" class="btn btn-primary btn-sm" onclick="SpatialStudio.closeModal()">
+                    <i data-lucide="check" size="12"></i> Done
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- MAIN APP DASHBOARD -->
     <div class="top-nav">
         <div class="top-nav-left">
@@ -929,6 +1172,9 @@
             </div>
         </div>
         <div class="top-nav-right">
+            <button class="btn btn-secondary btn-sm" onclick="SpatialStudio.openModal()" title="Customize 3D Spatial Effects, Glassmorphism, Theme & Animations">
+                <i data-lucide="sparkles" size="12" style="color: var(--accent);"></i> 3D Studio
+            </button>
             <button class="btn btn-secondary btn-sm" onclick="openAddServerModal()">
                 <i data-lucide="plus" size="12"></i> Add Server
             </button>
@@ -1279,9 +1525,10 @@
                             <div style="background: rgba(16, 185, 129, 0.08); border-left: 3px solid #10b981; padding: 12px 16px; border-radius: 4px; margin-bottom: 14px;">
                                 <strong style="color: #10b981;">Keep-Alive Webhook / Uptime Monitor URL:</strong>
                                 <p style="margin-top: 6px; color: #ccc;">Add this URL to free uptime monitors like <strong>UptimeRobot</strong> or <strong>Cron-Job.org</strong> (set check interval to every 5 mins). This sends a ping to keep your cloud container awake 24/7:</p>
-                                <div style="display: flex; gap: 8px; margin-top: 8px;">
-                                    <input type="text" id="keepAliveUrlInput" readonly style="flex: 1; background: #000; border: 1px solid #333; color: #10b981; padding: 8px 12px; border-radius: 4px; font-family: monospace; font-size: 0.85rem;" value="" />
+                                <div style="display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap;">
+                                    <input type="text" id="keepAliveUrlInput" readonly style="flex: 1; min-width: 240px; background: #000; border: 1px solid #333; color: #10b981; padding: 8px 12px; border-radius: 4px; font-family: monospace; font-size: 0.85rem;" value="" />
                                     <button class="btn btn-secondary btn-sm" onclick="copyKeepAliveUrl()"><i data-lucide="copy" size="13"></i> Copy URL</button>
+                                    <button class="btn btn-success btn-sm" onclick="testKeepAlivePing()"><i data-lucide="activity" size="13"></i> Test Ping</button>
                                 </div>
                             </div>
 
@@ -1662,6 +1909,25 @@
             }
         }
 
+        function areServerConfigsEqual(arr1, arr2) {
+            if (!Array.isArray(arr1) || !Array.isArray(arr2)) return false;
+            if (arr1.length !== arr2.length) return false;
+            for (let i = 0; i < arr1.length; i++) {
+                const a = arr1[i], b = arr2[i];
+                if (
+                    String(a.id) !== String(b.id) ||
+                    String(a.name) !== String(b.name) ||
+                    String(a.host) !== String(b.host) ||
+                    String(a.port) !== String(b.port) ||
+                    String(a.username) !== String(b.username) ||
+                    String(a.version || 'auto') !== String(b.version || 'auto')
+                ) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
         async function fetchServersList() {
             const token = localStorage.getItem('odinlux_token');
             if (!token) return;
@@ -1671,14 +1937,44 @@
                 });
                 const data = await res.json();
                 if (data.success && Array.isArray(data.servers)) {
+                    const hasChanged = !areServerConfigsEqual(serversConfig, data.servers);
                     serversConfig = data.servers;
                     if (data.statuses) Object.assign(botStatusCache, data.statuses);
                     if (data.uptimes) Object.assign(botUptimeCache, data.uptimes);
-                    renderServersUI();
+                    
+                    if (hasChanged) {
+                        renderServersUI();
+                    } else {
+                        updateStatusesInPlace();
+                    }
                 }
             } catch (err) {
                 console.warn('Failed to fetch servers list via REST:', err);
             }
+        }
+
+        function updateStatusesInPlace() {
+            serversConfig.forEach(s => {
+                const st = botStatusCache[s.id];
+                if (st) {
+                    const badge = document.getElementById('status-' + s.id);
+                    const indicator = document.getElementById('indicator-' + s.id);
+                    const fleetBadge = document.getElementById('status-fleet-' + s.id);
+                    if (badge) {
+                        badge.textContent = st.text;
+                        badge.style.background = st.color + '15';
+                        badge.style.color = st.color;
+                    }
+                    if (indicator) indicator.style.background = st.color;
+                    if (fleetBadge) {
+                        fleetBadge.textContent = st.text;
+                        fleetBadge.style.background = st.color + '15';
+                        fleetBadge.style.color = st.color;
+                    }
+                }
+                updateUptimeDisplay(s.id);
+            });
+            renderFleetCards();
         }
 
         function handleForgotPassword() {
@@ -2112,21 +2408,45 @@
         }
 
         function switchView(targetViewId, displayName) {
+            const previousViewId = activeViewId;
             activeViewId = targetViewId;
             activeDisplayName = displayName;
 
             document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-            document.querySelectorAll('.page-view').forEach(view => view.classList.add('hidden'));
-
             const targetTab = document.getElementById('tab-' + targetViewId);
             if (targetTab) targetTab.classList.add('active');
-
-            const targetView = document.getElementById('view-' + targetViewId);
-            if (targetView) targetView.classList.remove('hidden');
 
             const sidebarTitle = document.getElementById('sidebarServerTitle');
             if (sidebarTitle && displayName) {
                 sidebarTitle.textContent = displayName.replace(' Status', '');
+            }
+
+            // If we are already on this view, keep it active without replaying entrance animation or flickering
+            if (previousViewId === targetViewId) {
+                const tv = document.getElementById('view-' + targetViewId);
+                if (tv && tv.classList.contains('hidden')) tv.classList.remove('hidden');
+                return;
+            }
+
+            document.querySelectorAll('.page-view').forEach(view => {
+                if (view.id === 'view-' + targetViewId) {
+                    view.classList.remove('hidden');
+                } else {
+                    view.classList.add('hidden');
+                }
+            });
+
+            if (window.SpatialStudio && typeof window.SpatialStudio.onPageTransition === 'function') {
+                window.SpatialStudio.onPageTransition(targetViewId);
+            }
+
+            // Fresh data query on tab switch
+            if (targetViewId.startsWith('server-')) {
+                const sid = targetViewId.replace('server-', '');
+                if (window.socket && window.socket.connected) {
+                    window.socket.emit('request_server_logs', { serverId: sid });
+                    window.socket.emit('get_players', { serverId: sid });
+                }
             }
         }
 
@@ -2213,6 +2533,39 @@
                 return;
             }
 
+            // In-place update if cards already exist in DOM (prevents screen flicker)
+            const existingCards = container.querySelectorAll('.bot-fleet-card');
+            if (existingCards.length === serversConfig.length && serversConfig.length > 0) {
+                serversConfig.forEach(s => {
+                    const st = botStatusCache[s.id] || { text: 'OFFLINE', color: '#e00000' };
+                    const isOnline = st.text === 'ONLINE';
+                    if (isOnline) activeCount++;
+                    const pos = botPositionCache[s.id] || 'Standby';
+                    const uptimeVal = isOnline && botUptimeCache[s.id] ? formatUptime(Date.now() - botUptimeCache[s.id]) : (isOnline ? 'Connected' : (st.text === 'RECONNECTING' ? 'Reconnecting...' : '--'));
+                    const uptimeColor = isOnline ? '#10b981' : (st.text === 'RECONNECTING' ? '#f5a623' : 'var(--text-muted)');
+
+                    const badgeEl = document.getElementById('status-fleet-' + s.id);
+                    if (badgeEl) {
+                        badgeEl.textContent = st.text;
+                        badgeEl.style.background = st.color + '15';
+                        badgeEl.style.color = st.color;
+                        badgeEl.style.borderColor = st.color + '33';
+                    }
+                    const uptimeEl = document.getElementById('uptime-fleet-' + s.id);
+                    if (uptimeEl) {
+                        uptimeEl.textContent = uptimeVal;
+                        uptimeEl.style.color = uptimeColor;
+                    }
+                    const posEl = document.getElementById('pos-fleet-' + s.id);
+                    if (posEl) posEl.textContent = pos;
+                });
+                const badge = document.getElementById('sidebarActiveBotsBadge');
+                if (badge) badge.textContent = `${activeCount}/${serversConfig.length}`;
+                const fleetActive = document.getElementById('fleetActiveCount');
+                if (fleetActive) fleetActive.textContent = activeCount;
+                return;
+            }
+
             serversConfig.forEach(s => {
                 const st = botStatusCache[s.id] || { text: 'OFFLINE', color: '#e00000' };
                 const isOnline = st.text === 'ONLINE';
@@ -2224,7 +2577,7 @@
                 const uptimeColor = isOnline ? '#10b981' : (st.text === 'RECONNECTING' ? '#f5a623' : 'var(--text-muted)');
 
                 html += `
-                    <div class="bot-fleet-card">
+                    <div class="bot-fleet-card" id="card-fleet-${s.id}">
                         <div class="bot-fleet-header">
                             <div class="bot-avatar-box">
                                 <div class="bot-avatar-icon"><i data-lucide="bot" size="20"></i></div>
@@ -2234,7 +2587,7 @@
                                 </div>
                             </div>
                             <div style="display: flex; align-items: center; gap: 6px;">
-                                <span class="status-badge" style="background: ${st.color}15; color: ${st.color}; border-color: ${st.color}33;">
+                                <span class="status-badge" id="status-fleet-${s.id}" style="background: ${st.color}15; color: ${st.color}; border-color: ${st.color}33;">
                                     ${escapeHtml(st.text)}
                                 </span>
                                 <button class="btn btn-secondary btn-sm" style="padding: 2px 7px; height: 22px; font-size: 11px;" onclick="refreshSingleServer('${s.id}')" title="Refresh bot status & ping server">
@@ -2258,7 +2611,7 @@
                             </div>
                             <div class="bot-info-row">
                                 <span style="color: var(--text-muted)">Position</span>
-                                <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px;">${escapeHtml(pos)}</span>
+                                <span id="pos-fleet-${s.id}" style="font-family: 'JetBrains Mono', monospace; font-size: 11px;">${escapeHtml(pos)}</span>
                             </div>
                             <div class="bot-info-row">
                                 <span style="color: var(--text-muted)">Version</span>
@@ -2285,182 +2638,261 @@
             lucide.createIcons();
         }
 
+        function buildSingleServerViewHtml(s, isServerActive) {
+            const isOnline = botStatusCache[s.id] && botStatusCache[s.id].text === 'ONLINE';
+            const initialUptime = isOnline && botUptimeCache[s.id] ? formatUptime(Date.now() - botUptimeCache[s.id]) : (isOnline ? 'Connected' : '--');
+            const st = botStatusCache[s.id] || { text: 'Standby', color: '#f5a623' };
+
+            return `
+                <div class="page-view ${isServerActive ? '' : 'hidden'}" id="view-server-${s.id}">
+                    <div class="server-header-bar">
+                        <div class="server-title">
+                            <i data-lucide="cpu" size="15" style="color: var(--text-muted);"></i>
+                            <span id="title-server-${s.id}">${escapeHtml(s.name)}</span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span id="status-${s.id}" class="status-badge" style="background: ${st.color}15; color: ${st.color};">${escapeHtml(st.text)}</span>
+                        </div>
+                    </div>
+
+                    <div class="content-area">
+                        <div class="stats-grid">
+                            <div class="stat-card">
+                                <span class="label"><i data-lucide="clock" size="13" style="color: #10b981;"></i> Continuous Uptime</span>
+                                <span class="value" id="uptime-server-${s.id}" style="color: #10b981; font-weight: 600;">${initialUptime}</span>
+                            </div>
+                            <div class="stat-card">
+                                <span class="label"><i data-lucide="globe" size="13"></i> Host & Port</span>
+                                <span class="value" id="host-server-${s.id}">${escapeHtml(s.host)}:${s.port}</span>
+                            </div>
+                            <div class="stat-card">
+                                <span class="label"><i data-lucide="user" size="13"></i> Bot Account</span>
+                                <span class="value" id="user-server-${s.id}">${escapeHtml(s.username)}</span>
+                            </div>
+                            <div class="stat-card">
+                                <span class="label"><i data-lucide="compass" size="13"></i> Coordinates</span>
+                                <span class="value" id="pos-${s.id}">Waiting...</span>
+                            </div>
+                            <div class="stat-card">
+                                <span class="label"><i data-lucide="cpu" size="13" style="color: #38bdf8;"></i> Bot Instance CPU & RAM</span>
+                                <span class="value" id="res-server-${s.id}" style="color: #38bdf8;">0.0% CPU • Standby</span>
+                            </div>
+                        </div>
+
+                        <div class="players-box">
+                            <h4><i data-lucide="users" size="13" style="color: var(--text-muted);"></i> Connected Players (<span id="pcount-${s.id}">0</span>)</h4>
+                            <div class="players-list" id="plist-${s.id}">
+                                <span style="color: var(--text-muted)">Fetching live roster...</span>
+                            </div>
+                        </div>
+
+                        <div class="console-wrapper">
+                            <div class="console-header">
+                                <span style="display: flex; align-items: center; gap: 6px;"><i data-lucide="terminal" size="13" style="color: var(--text-muted);"></i> Console Logs</span>
+                                <div class="console-actions">
+                                    <button class="btn btn-secondary btn-sm" onclick="copyConsoleLogs('${s.id}')" title="Copy console logs"><i data-lucide="copy" size="11"></i> Copy</button>
+                                    <button class="btn btn-secondary btn-sm" onclick="downloadConsoleLogs('${s.id}')" title="Download console logs as .txt file"><i data-lucide="download" size="11"></i> Download Logs</button>
+                                    <button class="btn btn-secondary btn-sm" onclick="clearConsoleLogs('${s.id}')" title="Clear console output"><i data-lucide="trash-2" size="11"></i> Clear</button>
+                                </div>
+                            </div>
+                            <div id="console-${s.id}" class="console-terminal"></div>
+                        </div>
+
+                        <div class="action-bar">
+                            <button class="btn btn-success" onclick="startBot('${s.id}')"><i data-lucide="play" size="13"></i> Start</button>
+                            <button class="btn btn-danger" onclick="stopBot('${s.id}')"><i data-lucide="square" size="13"></i> Stop</button>
+                            <button class="btn btn-secondary" onclick="openEditModal('${s.id}')"><i data-lucide="settings" size="13"></i> Configure</button>
+                            <button class="btn btn-secondary" onclick="fetchPlayers('${s.id}')"><i data-lucide="rotate-cw" size="13"></i> Refresh Players</button>
+                            ${s.password ? '<button class="btn btn-secondary" onclick="sendAuthMe(\'' + s.id + '\')"><i data-lucide="key" size="13"></i> AuthMe Login</button>' : ''}
+                            <button class="btn btn-secondary" onclick="sendCmd('${s.id}', '/gamemode spectator')"><i data-lucide="eye" size="13"></i> Spectator</button>
+                            <button class="btn btn-secondary" onclick="sendCmd('${s.id}', '/gamemode survival')"><i data-lucide="shield" size="13"></i> Survival</button>
+                            <button class="btn btn-danger" onclick="confirmDeleteServer('${s.id}', '${escapeHtml(s.name)}')" style="margin-left: auto;"><i data-lucide="trash-2" size="13"></i> Delete</button>
+                        </div>
+
+                        <div class="chat-form-wrapper">
+                            <form class="chat-form" onsubmit="handleChatSubmit(event, '${s.id}')">
+                                <input type="text" class="chat-input" id="chatInput-${s.id}" placeholder="Type command or chat message... (e.g. /gamemode spectator or !ai how to find netherite)" required autocomplete="off">
+                                <button type="submit" class="btn btn-success"><i data-lucide="send" size="13"></i> Send</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function buildSingleSmpViewHtml(s, isSmpActive) {
+            return `
+                <div class="page-view ${isSmpActive ? '' : 'hidden'}" id="view-smp-${s.id}">
+                    <div class="server-header-bar">
+                        <div class="server-title">
+                            <i data-lucide="activity" size="15" style="color: #10b981;"></i>
+                            <span>${escapeHtml(s.name)} — Diagnostics</span>
+                        </div>
+                        <button class="btn btn-secondary btn-sm" onclick="handleRefreshSmp('${s.id}')" title="Refresh server ping and diagnostics">
+                            <i data-lucide="rotate-cw" size="12"></i> Refresh Diagnostics
+                        </button>
+                    </div>
+                    <div class="content-area">
+                        <div class="smp-card-container">
+                            <div class="smp-embed">
+                                <div class="smp-header">
+                                    <i data-lucide="hard-drive" size="20" style="color: #fff;"></i>
+                                    <h3>${escapeHtml(s.name)}</h3>
+                                </div>
+                                <div class="smp-divider"></div>
+                                <div class="smp-field">
+                                    <div class="smp-field-label">Status</div>
+                                    <div class="smp-field-value" id="smp-status-${s.id}">Checking...</div>
+                                </div>
+                                <div class="smp-field">
+                                    <div class="smp-field-label">Players Online</div>
+                                    <div class="smp-field-value" id="smp-players-${s.id}">-- / --</div>
+                                </div>
+                                <div class="smp-field">
+                                    <div class="smp-field-label">Latency</div>
+                                    <div class="smp-field-value" id="smp-latency-${s.id}">-- ms</div>
+                                </div>
+                                <div class="smp-field">
+                                    <div class="smp-field-label">Connection IP</div>
+                                    <div class="smp-connect-box" onclick="navigator.clipboard.writeText('${escapeHtml(s.connectIp)}').then(() => showToast('Copied IP'));">
+                                        <span>${escapeHtml(s.connectIp)}</span>
+                                        <i data-lucide="copy" size="13"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
         function renderServersUI() {
             const tabsNavServers = document.getElementById('tabsNavServers');
             const tabsNavSmp = document.getElementById('tabsNavSmp');
             const viewsContainer = document.getElementById('viewsContainer');
             if (!tabsNavServers || !tabsNavSmp || !viewsContainer) return;
 
-            let serversTabsHtml = '';
-            let smpTabsHtml = '';
-            let serverViewsHtml = '';
+            const existingServerTabs = tabsNavServers.querySelectorAll('.tab-btn');
+            const canReconcileTabs = existingServerTabs.length === serversConfig.length && serversConfig.every(s => document.getElementById('tab-server-' + s.id));
 
-            serversConfig.forEach((s) => {
-                const isServerActive = activeViewId === ('server-' + s.id);
-                const isSmpActive = activeViewId === ('smp-' + s.id);
-                const isOnline = botStatusCache[s.id] && botStatusCache[s.id].text === 'ONLINE';
-                const initialUptime = isOnline && botUptimeCache[s.id] ? formatUptime(Date.now() - botUptimeCache[s.id]) : (isOnline ? 'Connected' : '--');
+            if (canReconcileTabs) {
+                // In-place update of tabs to eliminate flicker
+                serversConfig.forEach(s => {
+                    const isServerActive = activeViewId === ('server-' + s.id);
+                    const btn = document.getElementById('tab-server-' + s.id);
+                    if (btn) {
+                        if (isServerActive) btn.classList.add('active');
+                        else btn.classList.remove('active');
+                    }
+                    const indicator = document.getElementById('indicator-' + s.id);
+                    const st = botStatusCache[s.id] || { text: 'STANDBY', color: '#888888' };
+                    if (indicator) indicator.style.background = st.color;
+                    const smpBtn = document.getElementById('tab-smp-' + s.id);
+                    const isSmpActive = activeViewId === ('smp-' + s.id);
+                    if (smpBtn) {
+                        if (isSmpActive) smpBtn.classList.add('active');
+                        else smpBtn.classList.remove('active');
+                    }
+                });
+            } else {
+                let serversTabsHtml = '';
+                let smpTabsHtml = '';
 
-                serversTabsHtml += `
-                    <button class="tab-btn ${isServerActive ? 'active' : ''}" id="tab-server-${s.id}" onclick="switchView('server-${s.id}', '${escapeHtml(s.name)}')">
-                        <span class="tab-status" id="indicator-${s.id}"></span>
-                        <span>${escapeHtml(s.name)}</span>
-                    </button>
-                `;
+                serversConfig.forEach((s) => {
+                    const isServerActive = activeViewId === ('server-' + s.id);
+                    const isSmpActive = activeViewId === ('smp-' + s.id);
+                    const st = botStatusCache[s.id] || { text: 'STANDBY', color: '#888888' };
+                    serversTabsHtml += `
+                        <button class="tab-btn ${isServerActive ? 'active' : ''}" id="tab-server-${s.id}" onclick="switchView('server-${s.id}', '${escapeHtml(s.name)}')">
+                            <span class="tab-status" id="indicator-${s.id}" style="background: ${st.color};"></span>
+                            <span>${escapeHtml(s.name)}</span>
+                        </button>
+                    `;
 
-                smpTabsHtml += `
-                    <button class="tab-btn ${isSmpActive ? 'active' : ''}" id="tab-smp-${s.id}" onclick="switchView('smp-${s.id}', '${escapeHtml(s.name)} Status')">
-                        <i data-lucide="activity" size="14" style="color: var(--text-muted);"></i>
-                        <span>${escapeHtml(s.name)} Info</span>
-                    </button>
-                `;
+                    smpTabsHtml += `
+                        <button class="tab-btn ${isSmpActive ? 'active' : ''}" id="tab-smp-${s.id}" onclick="switchView('smp-${s.id}', '${escapeHtml(s.name)} Status')">
+                            <i data-lucide="activity" size="14" style="color: var(--text-muted);"></i>
+                            <span>${escapeHtml(s.name)} Info</span>
+                        </button>
+                    `;
+                });
 
-                serverViewsHtml += `
-                    <div class="page-view ${isServerActive ? '' : 'hidden'}" id="view-server-${s.id}">
-                        <div class="server-header-bar">
-                            <div class="server-title">
-                                <i data-lucide="cpu" size="15" style="color: var(--text-muted);"></i>
-                                <span id="title-server-${s.id}">${escapeHtml(s.name)}</span>
-                            </div>
-                            <div style="display: flex; align-items: center; gap: 8px;">
-                                <span id="status-${s.id}" class="status-badge" style="background: rgba(245, 166, 35, 0.1); color: #f5a623;">Standby</span>
-                            </div>
-                        </div>
+                tabsNavServers.innerHTML = serversTabsHtml;
+                tabsNavSmp.innerHTML = smpTabsHtml;
+            }
 
-                        <div class="content-area">
-                            <div class="stats-grid">
-                                <div class="stat-card">
-                                    <span class="label"><i data-lucide="clock" size="13" style="color: #10b981;"></i> Continuous Uptime</span>
-                                    <span class="value" id="uptime-server-${s.id}" style="color: #10b981; font-weight: 600;">${initialUptime}</span>
-                                </div>
-                                <div class="stat-card">
-                                    <span class="label"><i data-lucide="globe" size="13"></i> Host & Port</span>
-                                    <span class="value">${escapeHtml(s.host)}:${s.port}</span>
-                                </div>
-                                <div class="stat-card">
-                                    <span class="label"><i data-lucide="user" size="13"></i> Bot Account</span>
-                                    <span class="value">${escapeHtml(s.username)}</span>
-                                </div>
-                                <div class="stat-card">
-                                    <span class="label"><i data-lucide="compass" size="13"></i> Coordinates</span>
-                                    <span class="value" id="pos-${s.id}">Waiting...</span>
-                                </div>
-                                <div class="stat-card">
-                                    <span class="label"><i data-lucide="cpu" size="13" style="color: #38bdf8;"></i> Bot Instance CPU & RAM</span>
-                                    <span class="value" id="res-server-${s.id}" style="color: #38bdf8;">0.0% CPU • Standby</span>
-                                </div>
-                            </div>
-
-                            <div class="players-box">
-                                <h4><i data-lucide="users" size="13" style="color: var(--text-muted);"></i> Connected Players (<span id="pcount-${s.id}">0</span>)</h4>
-                                <div class="players-list" id="plist-${s.id}">
-                                    <span style="color: var(--text-muted)">Fetching live roster...</span>
-                                </div>
-                            </div>
-
-                            <div class="console-wrapper">
-                                <div class="console-header">
-                                    <span style="display: flex; align-items: center; gap: 6px;"><i data-lucide="terminal" size="13" style="color: var(--text-muted);"></i> Console Logs</span>
-                                    <div class="console-actions">
-                                        <button class="btn btn-secondary btn-sm" onclick="copyConsoleLogs('${s.id}')" title="Copy console logs"><i data-lucide="copy" size="11"></i> Copy</button>
-                                        <button class="btn btn-secondary btn-sm" onclick="downloadConsoleLogs('${s.id}')" title="Download console logs as .txt file"><i data-lucide="download" size="11"></i> Download Logs</button>
-                                        <button class="btn btn-secondary btn-sm" onclick="clearConsoleLogs('${s.id}')" title="Clear console output"><i data-lucide="trash-2" size="11"></i> Clear</button>
-                                    </div>
-                                </div>
-                                <div id="console-${s.id}" class="console-terminal"></div>
-                            </div>
-
-                            <div class="action-bar">
-                                <button class="btn btn-success" onclick="startBot('${s.id}')"><i data-lucide="play" size="13"></i> Start</button>
-                                <button class="btn btn-danger" onclick="stopBot('${s.id}')"><i data-lucide="square" size="13"></i> Stop</button>
-                                <button class="btn btn-secondary" onclick="openEditModal('${s.id}')"><i data-lucide="settings" size="13"></i> Configure</button>
-                                <button class="btn btn-secondary" onclick="fetchPlayers('${s.id}')"><i data-lucide="rotate-cw" size="13"></i> Refresh Players</button>
-                                ${s.password ? '<button class="btn btn-secondary" onclick="sendAuthMe(\'' + s.id + '\')"><i data-lucide="key" size="13"></i> AuthMe Login</button>' : ''}
-                                <button class="btn btn-secondary" onclick="sendCmd('${s.id}', '/gamemode spectator')"><i data-lucide="eye" size="13"></i> Spectator</button>
-                                <button class="btn btn-secondary" onclick="sendCmd('${s.id}', '/gamemode survival')"><i data-lucide="shield" size="13"></i> Survival</button>
-                                <button class="btn btn-danger" onclick="confirmDeleteServer('${s.id}', '${escapeHtml(s.name)}')" style="margin-left: auto;"><i data-lucide="trash-2" size="13"></i> Delete</button>
-                            </div>
-
-                            <div class="chat-form-wrapper">
-                                <form class="chat-form" onsubmit="handleChatSubmit(event, '${s.id}')">
-                                    <input type="text" class="chat-input" id="chatInput-${s.id}" placeholder="Type command or chat message... (e.g. /gamemode spectator or !ai how to find netherite)" required autocomplete="off">
-                                    <button type="submit" class="btn btn-success"><i data-lucide="send" size="13"></i> Send</button>
-                                </form>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="page-view ${isSmpActive ? '' : 'hidden'}" id="view-smp-${s.id}">
-                        <div class="server-header-bar">
-                            <div class="server-title">
-                                <i data-lucide="activity" size="15" style="color: #10b981;"></i>
-                                <span>${escapeHtml(s.name)} — Diagnostics</span>
-                            </div>
-                            <button class="btn btn-secondary btn-sm" onclick="handleRefreshSmp('${s.id}')" title="Refresh server ping and diagnostics">
-                                <i data-lucide="rotate-cw" size="12"></i> Refresh Diagnostics
-                            </button>
-                        </div>
-                        <div class="content-area">
-                            <div class="smp-card-container">
-                                <div class="smp-embed">
-                                    <div class="smp-header">
-                                        <i data-lucide="hard-drive" size="20" style="color: #fff;"></i>
-                                        <h3>${escapeHtml(s.name)}</h3>
-                                    </div>
-                                    <div class="smp-divider"></div>
-                                    <div class="smp-field">
-                                        <div class="smp-field-label">Status</div>
-                                        <div class="smp-field-value" id="smp-status-${s.id}">Checking...</div>
-                                    </div>
-                                    <div class="smp-field">
-                                        <div class="smp-field-label">Players Online</div>
-                                        <div class="smp-field-value" id="smp-players-${s.id}">-- / --</div>
-                                    </div>
-                                    <div class="smp-field">
-                                        <div class="smp-field-label">Latency</div>
-                                        <div class="smp-field-value" id="smp-latency-${s.id}">-- ms</div>
-                                    </div>
-                                    <div class="smp-field">
-                                        <div class="smp-field-label">Connection IP</div>
-                                        <div class="smp-connect-box" onclick="navigator.clipboard.writeText('${escapeHtml(s.connectIp)}').then(() => showToast('Copied IP'));">
-                                            <span>${escapeHtml(s.connectIp)}</span>
-                                            <i data-lucide="copy" size="13"></i>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            });
-
-            tabsNavServers.innerHTML = serversTabsHtml;
-            tabsNavSmp.innerHTML = smpTabsHtml;
-            viewsContainer.innerHTML = serverViewsHtml;
-
-            // Restore buffered console logs for active server terminals
-            serversConfig.forEach((s) => {
-                const term = document.getElementById('console-' + s.id);
-                if (term && consoleLogsCache[s.id] && consoleLogsCache[s.id].length > 0) {
-                    const frag = document.createDocumentFragment();
-                    consoleLogsCache[s.id].forEach(msg => {
-                        const line = document.createElement('div');
-                        line.className = 'log-line';
-                        if (msg.includes('[SENT]')) line.classList.add('log-sent');
-                        else if (msg.includes('[ERROR]') || msg.includes('[KICKED]') || msg.includes('[DENIED]') || msg.includes('[CONFLICT')) line.classList.add('log-kicked');
-                        else if (msg.includes('[AUTH]') || msg.includes('AuthMe')) line.classList.add('log-auth');
-                        line.textContent = msg;
-                        frag.appendChild(line);
-                    });
-                    term.appendChild(frag);
-                    term.scrollTop = term.scrollHeight;
+            // Non-destructive reconciliation of views:
+            // 1. Remove deleted servers from DOM
+            const validIds = new Set(serversConfig.map(s => s.id));
+            viewsContainer.querySelectorAll('[id^="view-server-"], [id^="view-smp-"]').forEach(el => {
+                const sid = el.id.replace('view-server-', '').replace('view-smp-', '');
+                if (!validIds.has(sid)) {
+                    el.remove();
                 }
             });
 
+            // 2. Add or update existing servers in place without innerHTML reset
+            let createdNew = false;
+            serversConfig.forEach(s => {
+                const isServerActive = activeViewId === ('server-' + s.id);
+                const isSmpActive = activeViewId === ('smp-' + s.id);
+                let serverView = document.getElementById('view-server-' + s.id);
+
+                if (!serverView) {
+                    createdNew = true;
+                    const wrapper = document.createElement('div');
+                    wrapper.innerHTML = buildSingleServerViewHtml(s, isServerActive);
+                    const el = wrapper.firstElementChild;
+                    viewsContainer.appendChild(el);
+
+                    // Restore buffered logs if any
+                    const term = document.getElementById('console-' + s.id);
+                    if (term && consoleLogsCache[s.id] && consoleLogsCache[s.id].length > 0) {
+                        const frag = document.createDocumentFragment();
+                        consoleLogsCache[s.id].forEach(msg => {
+                            const line = document.createElement('div');
+                            line.className = 'log-line';
+                            formatLogLineStyle(line, msg);
+                            line.textContent = msg;
+                            frag.appendChild(line);
+                        });
+                        term.appendChild(frag);
+                        term.scrollTop = term.scrollHeight;
+                    }
+                } else {
+                    // Update text values without rebuilding DOM or inputs
+                    const titleEl = document.getElementById('title-server-' + s.id);
+                    if (titleEl && titleEl.textContent !== s.name) titleEl.textContent = s.name;
+                    const hostEl = document.getElementById('host-server-' + s.id);
+                    if (hostEl) hostEl.textContent = `${s.host}:${s.port}`;
+                    const userEl = document.getElementById('user-server-' + s.id);
+                    if (userEl) userEl.textContent = s.username;
+                }
+
+                let smpView = document.getElementById('view-smp-' + s.id);
+                if (!smpView) {
+                    createdNew = true;
+                    const wrapper = document.createElement('div');
+                    wrapper.innerHTML = buildSingleSmpViewHtml(s, isSmpActive);
+                    viewsContainer.appendChild(wrapper.firstElementChild);
+                }
+            });
+
+            // 3. Keep current active view state clean
+            document.querySelectorAll('.page-view').forEach(view => {
+                if (view.id === 'view-' + activeViewId) {
+                    view.classList.remove('hidden');
+                } else {
+                    view.classList.add('hidden');
+                }
+            });
+
+            updateStatusesInPlace();
             renderFleetCards();
             if (currentUser && currentUser.role === 'admin') renderAdminTable();
-            lucide.createIcons();
-            switchView(activeViewId, activeDisplayName);
+            if (createdNew) {
+                lucide.createIcons();
+            }
         }
 
         function copyConsoleLogs(serverId) {
@@ -2539,29 +2971,35 @@
         }
 
         async function handleRefreshFleet() {
+            const btn = document.getElementById('btnRefreshFleet');
             const icon = document.getElementById('iconRefreshFleet');
+            if (btn) btn.style.pointerEvents = 'none';
             if (icon) icon.classList.add('spin-animation');
             const token = localStorage.getItem('odinlux_token');
             socket.emit('refresh_fleet');
             try {
-                const res = await fetch('/api/servers', {
-                    headers: { 'Authorization': 'Bearer ' + token }
-                });
-                const data = await res.json();
+                const [serversRes, statsRes] = await Promise.all([
+                    fetch('/api/servers', { headers: { 'Authorization': 'Bearer ' + token } }),
+                    fetch('/api/system/stats')
+                ]);
+                const data = await serversRes.json();
+                const stats = await statsRes.json();
                 if (data.success && data.servers) {
                     serversConfig = data.servers;
                     if (data.statuses) Object.assign(botStatusCache, data.statuses);
                     if (data.uptimes) Object.assign(botUptimeCache, data.uptimes);
-                    renderServersUI();
-        fetchSystemStats();
-        setInterval(fetchSystemStats, 5000);
-                    showToast('Fleet & server statuses refreshed');
+                    updateStatusesInPlace();
+                    if (stats) updateSystemStatsDisplay(stats);
+                    showToast('Fleet statuses refreshed');
                 }
             } catch (err) {
                 console.error('Fleet refresh error:', err);
                 showToast('Refreshed fleet live state');
             } finally {
-                if (icon) setTimeout(() => icon.classList.remove('spin-animation'), 600);
+                setTimeout(() => {
+                    if (icon) icon.classList.remove('spin-animation');
+                    if (btn) btn.style.pointerEvents = 'auto';
+                }, 350);
             }
         }
 
@@ -2723,6 +3161,16 @@
                     document.execCommand('copy');
                     showToast('Keep-Alive URL copied!');
                 });
+            }
+        }
+
+        async function testKeepAlivePing() {
+            try {
+                const res = await fetch('/api/keepalive');
+                const data = await res.json();
+                showToast(`✅ Ping Success! Status: ${data.status} • Active Bots: ${data.activeBotsCount} • Warm: 100%`);
+            } catch (err) {
+                showToast('Keep-Alive Ping failed: ' + err.message);
             }
         }
 
@@ -2911,14 +3359,21 @@
             botStatusCache[data.serverId] = { text: data.text, color: data.color };
             const badge = document.getElementById('status-' + data.serverId);
             const indicator = document.getElementById('indicator-' + data.serverId);
+            const fleetBadge = document.getElementById('status-fleet-' + data.serverId);
             if (badge) {
                 badge.textContent = data.text;
                 badge.style.background = data.color + '15';
                 badge.style.color = data.color;
             }
             if (indicator) indicator.style.background = data.color;
-            renderFleetCards();
+            if (fleetBadge) {
+                fleetBadge.textContent = data.text;
+                fleetBadge.style.background = data.color + '15';
+                fleetBadge.style.color = data.color;
+                fleetBadge.style.borderColor = data.color + '33';
+            }
             updateUptimeDisplay(data.serverId);
+            renderFleetCards();
         });
 
         socket.on('position', (data) => {
@@ -2926,8 +3381,39 @@
             botPositionCache[data.serverId] = posStr;
             const posSpan = document.getElementById('pos-' + data.serverId);
             if (posSpan) posSpan.textContent = posStr;
-            renderFleetCards();
+            const posFleetSpan = document.getElementById('pos-fleet-' + data.serverId);
+            if (posFleetSpan) posFleetSpan.textContent = posStr;
         });
+
+        socket.on('logs_history', (data) => {
+            if (!data || !data.serverId || !Array.isArray(data.logs)) return;
+            consoleLogsCache[data.serverId] = data.logs.slice(-2000);
+            const targetConsole = document.getElementById('console-' + data.serverId);
+            if (targetConsole) {
+                targetConsole.innerHTML = '';
+                const frag = document.createDocumentFragment();
+                data.logs.forEach(msg => {
+                    const line = document.createElement('div');
+                    line.className = 'log-line';
+                    formatLogLineStyle(line, msg);
+                    line.textContent = msg;
+                    frag.appendChild(line);
+                });
+                targetConsole.appendChild(frag);
+                targetConsole.scrollTop = targetConsole.scrollHeight;
+            }
+        });
+
+        function formatLogLineStyle(lineEl, msg) {
+            if (msg.includes('[SENT]')) lineEl.classList.add('log-sent');
+            else if (msg.includes('[ERROR]') || msg.includes('[KICKED]') || msg.includes('[DENIED]') || msg.includes('[CONFLICT')) lineEl.classList.add('log-kicked');
+            else if (msg.includes('[AUTH]') || msg.includes('AuthMe')) lineEl.classList.add('log-auth');
+            else if (msg.includes('[WORLD]') || msg.includes('joined the world') || msg.includes('joined and spawned')) lineEl.style.color = '#34d399';
+            else if (msg.includes('[LOGIN]')) lineEl.style.color = '#38bdf8';
+            else if (msg.includes('[PLAYER JOINED]')) lineEl.style.color = '#60a5fa';
+            else if (msg.includes('[PLAYER LEFT]')) lineEl.style.color = '#f5a623';
+            else if (msg.includes('[STATUS]')) lineEl.style.color = '#10b981';
+        }
 
         socket.on('log', (data) => {
             if (!data || !data.serverId) return;
@@ -2940,9 +3426,7 @@
             if (targetConsole) {
                 const line = document.createElement('div');
                 line.className = 'log-line';
-                if (data.msg.includes('[SENT]')) line.classList.add('log-sent');
-                else if (data.msg.includes('[ERROR]') || data.msg.includes('[KICKED]') || data.msg.includes('[DENIED]') || data.msg.includes('[CONFLICT')) line.classList.add('log-kicked');
-                else if (data.msg.includes('[AUTH]') || data.msg.includes('AuthMe')) line.classList.add('log-auth');
+                formatLogLineStyle(line, data.msg);
                 line.textContent = data.msg;
                 targetConsole.appendChild(line);
                 targetConsole.scrollTop = targetConsole.scrollHeight;
@@ -2984,5 +3468,16 @@
         setInterval(fetchSystemStats, 5000);
         lucide.createIcons();
     </script>
+
+    <!-- FLOATING SPATIAL ACTION BUTTONS -->
+    <div class="spatial-fab-container">
+        <button id="btnScrollToTop" class="spatial-fab" title="Scroll to top">
+            <i data-lucide="chevron-up" size="18"></i>
+        </button>
+        <button class="spatial-fab studio-fab" onclick="SpatialStudio.openModal()" title="Customize 3D Spatial Effects, Glassmorphism, Theme & Animations">
+            <i data-lucide="sparkles" size="16" style="color: var(--accent);"></i>
+            <span>3D Studio</span>
+        </button>
+    </div>
 </body>
 </html>

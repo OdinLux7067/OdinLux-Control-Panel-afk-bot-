@@ -24,7 +24,8 @@
     "connectIp": "intel-3.rynixcloudinc.dpdns.org:2016",
     "description": "THEE LOBBY server is online and ready for players.",
     "ownerUsername": "Odin Lux",
-    "allowedUsers": []
+    "allowedUsers": [],
+    "autoStart": false
   },
   {
     "id": "server_3",
@@ -47,7 +48,7 @@
     "port": 25565,
     "username": "TheNexusfleet",
     "password": null,
-    "version": "auto",
+    "version": "1.21.4",
     "connectIp": "nexusfleet07.mcsh.io:25565",
     "description": "TheNexusfleet Paper 1.21 Server",
     "autoStart": false,
